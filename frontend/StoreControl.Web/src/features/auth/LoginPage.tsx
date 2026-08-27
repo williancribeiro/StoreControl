@@ -19,7 +19,7 @@ export function LoginPage() {
     handleSubmit,
     formState: { errors, isSubmitting },
   } = useForm<LoginForm>({
-    defaultValues: { email: 'admin@storecontrol.local', password: '' },
+    defaultValues: { email: '', password: '' },
   })
 
   if (user) {

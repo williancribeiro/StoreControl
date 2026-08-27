@@ -1,9 +1,11 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using StoreControl.Application.Abstractions.Persistence;
 
 namespace StoreControl.Api.Controllers;
 
 [ApiController]
+[Authorize]
 [Route("api/smoke")]
 public sealed class SmokeController(IDatabaseSmokeCheck databaseSmokeCheck) : ControllerBase
 {

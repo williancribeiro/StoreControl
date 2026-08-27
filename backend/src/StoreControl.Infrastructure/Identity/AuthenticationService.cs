@@ -24,7 +24,8 @@ internal sealed class AuthenticationService(
         var user = await userManager.FindByEmailAsync(command.Email.Trim());
         if (user is null || !user.IsActive)
         {
-            logger.LogWarning("Login rejected for {Email}", command.Email);
+            // Do not persist a user-supplied identifier for a failed login in application logs.
+            logger.LogWarning("Login rejected for an unknown or inactive account");
             return AuthenticationResult.Failed(AuthenticationFailure.InvalidCredentials);
         }
 

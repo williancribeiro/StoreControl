@@ -25,6 +25,7 @@ try
 
     builder.Services.AddControllers();
     builder.Services.AddStoreControlSecurity(builder.Configuration);
+    builder.Services.AddStoreControlRateLimiting(builder.Configuration);
     builder.Services.AddProblemDetails(options =>
     {
         options.CustomizeProblemDetails = context =>
@@ -95,9 +96,12 @@ try
     var app = builder.Build();
 
     app.UseMiddleware<CorrelationIdMiddleware>();
+    app.UseMiddleware<SecurityHeadersMiddleware>();
     app.UseSerilogRequestLogging();
     app.UseExceptionHandler();
+    app.UseRouting();
     app.UseCors("frontend");
+    app.UseRateLimiter();
     app.UseAuthentication();
 
     if (app.Environment.IsDevelopment())

@@ -1,5 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
 using StoreControl.Api.Security;
@@ -9,6 +10,7 @@ namespace StoreControl.Api.Controllers;
 
 [ApiController]
 [Route("api/auth")]
+[ResponseCache(Duration = 0, Location = ResponseCacheLocation.None, NoStore = true)]
 public sealed class AuthController(
     IAuthenticationService authenticationService,
     IOptions<RefreshTokenCookieOptions> cookieOptions) : ControllerBase
@@ -17,6 +19,7 @@ public sealed class AuthController(
 
     [AllowAnonymous]
     [HttpPost("login")]
+    [EnableRateLimiting(RateLimitPolicyNames.Authentication)]
     [ProducesResponseType<AuthResponse>(StatusCodes.Status200OK)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status401Unauthorized)]
     public async Task<ActionResult<AuthResponse>> Login(
@@ -37,6 +40,7 @@ public sealed class AuthController(
 
     [AllowAnonymous]
     [HttpPost("refresh")]
+    [EnableRateLimiting(RateLimitPolicyNames.Authentication)]
     [ProducesResponseType<AuthResponse>(StatusCodes.Status200OK)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status401Unauthorized)]
     public async Task<ActionResult<AuthResponse>> Refresh(CancellationToken cancellationToken)

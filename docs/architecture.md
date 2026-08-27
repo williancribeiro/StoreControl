@@ -65,7 +65,7 @@ Main registration:
 
 Foundation smoke:
 
-    Browser → React SmokePage → GET /api/smoke → EF Core → SQL Server
+    Authenticated browser → React SmokePage → GET /api/smoke → EF Core → SQL Server
 
 Frontend guards improve experience. JwtBearer, policies, account-state validation and service invariants are the security boundary.
 
@@ -84,10 +84,13 @@ Current schemas:
 ## Cross-cutting behavior
 
 - X-Correlation-ID is returned and enriched into structured logs;
+- malformed correlation IDs are replaced before reaching response headers and structured logs;
 - expected validation, not-found, conflict and forbidden exceptions become appropriate Problem Details;
 - unexpected exceptions are logged once at the API boundary;
 - OpenTelemetry traces ASP.NET Core and outgoing HTTP;
-- liveness is process-only and readiness queries SQL Server;
+- public liveness/readiness responses expose only aggregate status; the authenticated smoke endpoint carries diagnostic database metadata;
+- login and refresh use a fixed-window per-source rate limit in addition to Identity account lockout;
+- API and Web add defensive response headers; the Web container also applies a same-origin content security policy;
 - CancellationToken flows through controllers and EF operations where cancellation is meaningful.
 
 ## Decisions
@@ -96,3 +99,4 @@ Current schemas:
 - [ADR 0002](adr/0002-jwt-refresh-and-store-scoped-roles.md): JWT, refresh rotation and store-scoped roles.
 
 Redis and RabbitMQ remain provisioned but unused until a concrete cache or asynchronous workflow exists.
+Local security boundaries and production gaps are documented in [security.md](security.md).

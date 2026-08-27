@@ -39,6 +39,8 @@ JWT claims include subject, e-mail, display name, JWT ID, Identity security stam
 
 Changing a user, resetting a password or changing role permissions rotates affected security stamps. Existing access tokens then fail immediately rather than remaining usable for their nominal 15-minute lifetime.
 
+Login and refresh are additionally limited to 10 requests per source address in a 60-second fixed window. Rejections use HTTP 429 and Problem Details. This application limit complements account lockout; an internet deployment still needs equivalent controls at its trusted reverse proxy or gateway. Failed logins do not record a user-supplied e-mail address in application logs, and authentication responses are marked `Cache-Control: no-store`.
+
 ## Refresh token
 
 The browser receives the refresh token only as .StoreControl.RefreshToken:
@@ -77,7 +79,7 @@ ProtectedRoute requires authentication. PermissionRoute controls user experience
 
 The DbMigrator always seeds roles, permissions and three reference stores idempotently. Demonstration users are added only when Seed__DemoDataEnabled=true and both password variables are present. A versioned seed adds the new registration grants once to existing Gerente, Vendedor and Estoquista roles, while later runs preserve customized mappings. Affected existing sessions are invalidated through security-stamp rotation.
 
-The local example credentials are documented in README.md and .env.example. They are not production defaults.
+No working demonstration password is versioned. `scripts/Initialize-LocalEnvironment.ps1 -EnableDemoData` creates random local passwords in the ignored `.env`; README.md lists only the fixed `.local` identities required to select a profile. The example environment file keeps secret fields empty, and Compose refuses to start without required generated values.
 
 ## Deliberate limitations
 

@@ -68,7 +68,9 @@ For a 400, inspect the ValidationProblemDetails fields and domain normalization 
 
 ## Foundation smoke
 
-    Browser → SmokePage → Axios → GET /api/smoke → EF Core → platform.FoundationRecords
+    Authenticated browser → SmokePage → Axios → GET /api/smoke → EF Core → platform.FoundationRecords
+
+Public `/health` routes intentionally return only aggregate status. Sign in and use `/system/smoke` when foundation version and SQL Server time are needed for diagnosis.
 
 ## Future asynchronous path
 

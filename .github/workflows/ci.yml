@@ -8,30 +8,41 @@ on:
 jobs:
   validate:
     runs-on: ubuntu-latest
-    services:
-      sqlserver:
-        image: mcr.microsoft.com/mssql/server:2022-CU26-ubuntu-22.04
-        env:
-          ACCEPT_EULA: Y
-          MSSQL_PID: Developer
-          MSSQL_SA_PASSWORD: StoreControl_CI_Only_2026!
-        ports:
-          - 1433:1433
-        options: >-
-          --health-cmd "/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P 'StoreControl_CI_Only_2026!' -C -Q 'SELECT 1' -b -o /dev/null"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 15
-          --health-start-period 20s
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
       - name: Set up .NET
-        uses: actions/setup-dotnet@v4
+        uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4
         with:
           dotnet-version: 10.0.x
+
+      - name: Start SQL Server with an ephemeral credential
+        shell: bash
+        run: |
+          set -euo pipefail
+          db_password="ScCi!9_$(openssl rand -hex 24)"
+          echo "::add-mask::$db_password"
+          echo "STORECONTROL_CI_SA_PASSWORD=$db_password" >> "$GITHUB_ENV"
+          docker run --detach --name storecontrol-ci-sqlserver \
+            --env ACCEPT_EULA=Y \
+            --env MSSQL_PID=Developer \
+            --env MSSQL_SA_PASSWORD="$db_password" \
+            --publish 127.0.0.1:1433:1433 \
+            mcr.microsoft.com/mssql/server:2022-CU26-ubuntu-22.04
+
+          for attempt in {1..30}; do
+            if docker exec storecontrol-ci-sqlserver \
+              /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P "$db_password" \
+              -C -Q 'SELECT 1' -b -o /dev/null; then
+              exit 0
+            fi
+            sleep 2
+          done
+
+          docker logs storecontrol-ci-sqlserver
+          exit 1
 
       - name: Restore .NET tools
         run: dotnet tool restore
@@ -43,22 +54,23 @@ jobs:
         run: dotnet build StoreControl.sln --configuration Release --no-restore
 
       - name: Test backend
-        env:
-          STORECONTROL_TEST_DB_CONNECTION: Server=localhost,1433;Database=master;User Id=sa;Password=StoreControl_CI_Only_2026!;Encrypt=False;TrustServerCertificate=True
-        run: dotnet test StoreControl.sln --configuration Release --no-build
+        shell: bash
+        run: |
+          export STORECONTROL_TEST_DB_CONNECTION="Server=localhost,1433;Database=master;User Id=sa;Password=${STORECONTROL_CI_SA_PASSWORD};Encrypt=False;TrustServerCertificate=True"
+          dotnet test StoreControl.sln --configuration Release --no-build
 
       - name: Validate migration script
-        env:
-          STORECONTROL_DB_CONNECTION: Server=localhost,1433;Database=StoreControl_CI_Metadata;User Id=sa;Password=NotUsed_ForScript_Only_2026!;Encrypt=False;TrustServerCertificate=True
-        run: >-
-          dotnet ef migrations script --idempotent
-          --project backend/src/StoreControl.Infrastructure
-          --startup-project backend/src/StoreControl.Infrastructure
-          --context StoreControlDbContext
-          --output migration.sql
+        shell: bash
+        run: |
+          export STORECONTROL_DB_CONNECTION="Server=localhost,1433;Database=StoreControl_CI_Metadata;User Id=sa;Password=${STORECONTROL_CI_SA_PASSWORD};Encrypt=False;TrustServerCertificate=True"
+          dotnet ef migrations script --idempotent \
+            --project backend/src/StoreControl.Infrastructure \
+            --startup-project backend/src/StoreControl.Infrastructure \
+            --context StoreControlDbContext \
+            --output migration.sql
 
       - name: Set up Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: 24
           cache: npm

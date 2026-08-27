@@ -26,7 +26,9 @@ public sealed class CorrelationIdMiddleware(RequestDelegate next)
     {
         var candidate = context.Request.Headers[HeaderName].FirstOrDefault();
 
-        return !string.IsNullOrWhiteSpace(candidate) && candidate.Length <= 128
+        return !string.IsNullOrWhiteSpace(candidate) &&
+               candidate.Length <= 128 &&
+               candidate.All(character => char.IsAsciiLetterOrDigit(character) || character is '-' or '_' or '.')
             ? candidate
             : Guid.NewGuid().ToString("N");
     }

@@ -20,7 +20,10 @@ Coverage currently includes:
 - migration discovery and migration from zero;
 - successful Identity login;
 - signed access token and HttpOnly SameSite refresh cookie;
+- authentication responses marked as non-cacheable and per-source login rate limiting;
 - protected endpoint returning Problem Details 401;
+- authenticated smoke diagnostics, minimal public health payload and defensive response headers;
+- safe correlation-ID acceptance and replacement of unsafe values;
 - Vendedor receiving 403 on an Administrator write;
 - Administrator creating a store;
 - refresh rotation, replay detection and family revocation;
@@ -31,7 +34,7 @@ Coverage currently includes:
 - product seed search, active/category filters, sort and pagination;
 - customer document normalization/duplicate conflict plus Vendedor/Administrador policy differences for customers and suppliers.
 
-Set STORECONTROL_TEST_DB_CONNECTION to a SQL Server connection with create/drop database permission. The connection's database name is replaced with a safe unique test name. GitHub Actions provisions SQL Server Developer as a job service and supplies this variable.
+Set STORECONTROL_TEST_DB_CONNECTION to a SQL Server connection with create/drop database permission. The connection's database name is replaced with a safe unique test name. `scripts/Set-LocalEnvironment.ps1` prepares this value from the ignored local `.env`. GitHub Actions starts SQL Server with a newly generated masked password for each run rather than storing a working credential in the workflow.
 
 This phase uses a real configured SQL Server rather than Testcontainers so tests can run on the validation host even while its Docker daemon is unavailable. Testcontainers remains appropriate for later suites when the local Docker blocker is repaired.
 

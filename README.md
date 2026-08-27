@@ -20,10 +20,12 @@ A fundação, segurança, lojas e os cadastros de categorias, produtos, clientes
 
 Pré-requisitos: Docker Desktop ou Docker Engine com Compose.
 
-    Copy-Item .env.example .env
+    .\scripts\Initialize-LocalEnvironment.ps1 -EnableDemoData
     docker compose up --build
 
-Endereços padrão:
+O script cria um `.env` ignorado pelo Git com valores aleatórios independentes para SQL Server, Redis, RabbitMQ, JWT e usuários demonstrativos. Ele se recusa a sobrescrever um arquivo existente sem `-Force` e não imprime os segredos no terminal. O arquivo `.env.example` contém apenas nomes de variáveis e valores não secretos; copiá-lo sem preencher os campos obrigatórios faz o Compose falhar de forma explícita.
+
+Endereços padrão da própria máquina local:
 
 - frontend: http://localhost:5173;
 - API: http://localhost:5090;
@@ -33,18 +35,20 @@ Endereços padrão:
 
 O DbMigrator aplica migrations e seeds antes de API e Worker iniciarem. A API nunca altera o schema no startup.
 
+Este Compose é uma conveniência de desenvolvimento, não uma configuração de produção. As portas são vinculadas somente a `127.0.0.1`; não altere esse bind nem publique o ambiente na internet. Uma implantação real ainda exigiria HTTPS, gestão externa de segredos, usuário SQL de privilégio mínimo e revisão da infraestrutura descrita em [docs/security.md](docs/security.md).
+
 ## Contas locais de demonstração
 
-São criadas apenas quando Seed__DemoDataEnabled=true. As senhas vêm do ambiente; os valores abaixo correspondem ao arquivo de exemplo:
+São criadas somente quando `SEED_DEMO_DATA=true`, opção ativada pelo parâmetro `-EnableDemoData`. As identidades locais são:
 
-| Perfil | E-mail | Senha local de exemplo |
-| --- | --- | --- |
-| Administrador | admin@storecontrol.local | StoreControl_Admin_2026! |
-| Gerente | gerente@storecontrol.local | StoreControl_User_2026! |
-| Vendedor | vendedor@storecontrol.local | StoreControl_User_2026! |
-| Estoquista | estoquista@storecontrol.local | StoreControl_User_2026! |
+| Perfil | E-mail |
+| --- | --- |
+| Administrador | admin@storecontrol.local |
+| Gerente | gerente@storecontrol.local |
+| Vendedor | vendedor@storecontrol.local |
+| Estoquista | estoquista@storecontrol.local |
 
-Essas credenciais são deliberadamente locais e demonstrativas. Não reutilize as senhas e não versione o arquivo .env.
+As senhas aleatórias ficam exclusivamente no `.env` local, nas variáveis `DEMO_ADMIN_PASSWORD` e `DEMO_USER_PASSWORD`. Não reutilize, compartilhe ou versione esse arquivo. Os endereços `.local` não representam contas reais.
 
 Com o seed demonstrativo habilitado, o migrador também garante 8 categorias, 120 produtos, 30 clientes e 12 fornecedores coerentes e idempotentes. Isso permite testar busca, filtros e paginação sem cadastro manual inicial.
 
@@ -52,22 +56,20 @@ Com o seed demonstrativo habilitado, o migrador também garante 8 categorias, 12
 
 É possível usar SQL Server local ou subir somente dependências com Compose:
 
-    Copy-Item .env.example .env
+    .\scripts\Initialize-LocalEnvironment.ps1 -EnableDemoData
     docker compose up -d sqlserver redis rabbitmq
+
+Execute o carregador em cada terminal que iniciará uma aplicação .NET; ele não exibe os valores:
+
+    .\scripts\Set-LocalEnvironment.ps1
 
 Em um terminal do migrador:
 
-    $env:ConnectionStrings__StoreControl = 'Server=localhost,1433;Database=StoreControl;User Id=sa;Password=StoreControl_Local_Only_2026!;Encrypt=False;TrustServerCertificate=True'
-    $env:Seed__DemoDataEnabled = 'true'
-    $env:Seed__AdminPassword = 'StoreControl_Admin_2026!'
-    $env:Seed__UserPassword = 'StoreControl_User_2026!'
     dotnet run --project backend/src/StoreControl.DbMigrator
 
 Em outro terminal da API:
 
-    $env:ConnectionStrings__StoreControl = 'Server=localhost,1433;Database=StoreControl;User Id=sa;Password=StoreControl_Local_Only_2026!;Encrypt=False;TrustServerCertificate=True'
-    $env:Authentication__Jwt__SigningKey = 'StoreControl_Local_Jwt_Signing_Key_Change_Me_2026!'
-    $env:Authentication__RefreshToken__CookieSecure = 'false'
+    .\scripts\Set-LocalEnvironment.ps1
     dotnet run --project backend/src/StoreControl.Api
 
 Frontend:
@@ -80,7 +82,7 @@ Frontend:
 
 Os testes de integração criam e removem um banco efêmero com prefixo StoreControl_IntegrationTests_. Informe uma conexão com permissão para criar bancos:
 
-    $env:STORECONTROL_TEST_DB_CONNECTION = 'Server=localhost,1433;Database=master;User Id=sa;Password=StoreControl_Local_Only_2026!;Encrypt=False;TrustServerCertificate=True'
+    .\scripts\Set-LocalEnvironment.ps1
     dotnet tool restore
     dotnet restore StoreControl.sln
     dotnet build StoreControl.sln --no-restore
@@ -98,7 +100,7 @@ Frontend:
 
 Para criar uma migration:
 
-    $env:STORECONTROL_DB_CONNECTION = 'Server=localhost,1433;Database=StoreControl;User Id=sa;Password=StoreControl_Local_Only_2026!;Encrypt=False;TrustServerCertificate=True'
+    .\scripts\Set-LocalEnvironment.ps1
     dotnet ef migrations add NomeDaMigration --project backend/src/StoreControl.Infrastructure --startup-project backend/src/StoreControl.Infrastructure --context StoreControlDbContext --output-dir Persistence/Migrations
 
 Para gerar um script idempotente:
@@ -112,4 +114,5 @@ Para gerar um script idempotente:
 - [docs/authentication.md](docs/authentication.md): autenticação, sessão e autorização;
 - [docs/master-data.md](docs/master-data.md): categorias, produtos, clientes e fornecedores;
 - [docs/debugging-map.md](docs/debugging-map.md): caminhos de diagnóstico;
+- [docs/security.md](docs/security.md): limites de segurança e configuração local;
 - [docs/project-state.md](docs/project-state.md): estado, migrations e validações.

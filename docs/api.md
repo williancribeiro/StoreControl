@@ -47,9 +47,9 @@ POST returns 201 with the created representation. PUT returns the updated repres
 
 ## Foundation
 
-- GET /api/smoke: real API-to-SQL query;
-- GET /health/live: process liveness;
-- GET /health/ready and /health: SQL readiness;
+- GET /api/smoke: authenticated real API-to-SQL query with diagnostic metadata;
+- GET /health/live: public process liveness with aggregate status only;
+- GET /health/ready and /health: public SQL readiness with aggregate status only;
 - /swagger and /swagger/v1/swagger.json in Development.
 
 Swagger defines bearer authentication. Access tokens are returned in the login/refresh response; refresh tokens are cookie-only.

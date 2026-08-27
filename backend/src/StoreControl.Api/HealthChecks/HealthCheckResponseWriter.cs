@@ -10,19 +10,11 @@ public static class HealthCheckResponseWriter
     public static Task WriteAsync(HttpContext context, HealthReport report)
     {
         context.Response.ContentType = "application/json";
+        context.Response.Headers.CacheControl = "no-store";
 
         var response = new
         {
-            status = report.Status.ToString(),
-            duration = report.TotalDuration,
-            checks = report.Entries.Select(entry => new
-            {
-                name = entry.Key,
-                status = entry.Value.Status.ToString(),
-                description = entry.Value.Description,
-                duration = entry.Value.Duration,
-                data = entry.Value.Data
-            })
+            status = report.Status.ToString()
         };
 
         return context.Response.WriteAsync(JsonSerializer.Serialize(response, JsonOptions));

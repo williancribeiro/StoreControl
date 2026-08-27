@@ -24,6 +24,7 @@ public sealed class AuthenticationAndAuthorizationTests(SqlServerApiFactory fact
             SqlServerApiFactory.AdminPassword);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.True(response.Headers.CacheControl?.NoStore);
         var payload = await response.Content.ReadFromJsonAsync<JsonDocument>();
         Assert.False(string.IsNullOrWhiteSpace(payload!.RootElement.GetProperty("accessToken").GetString()));
         Assert.Equal(
@@ -44,6 +45,45 @@ public sealed class AuthenticationAndAuthorizationTests(SqlServerApiFactory fact
 
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
         Assert.Equal("application/problem+json", response.Content.Headers.ContentType?.MediaType);
+    }
+
+    [Fact]
+    public async Task Smoke_requires_authentication_and_health_response_does_not_expose_check_details()
+    {
+        using var client = factory.CreateClient();
+
+        var smoke = await client.GetAsync("/api/smoke");
+        Assert.Equal(HttpStatusCode.Unauthorized, smoke.StatusCode);
+
+        var health = await client.GetAsync("/health/ready");
+        health.EnsureSuccessStatusCode();
+        var payload = await health.Content.ReadFromJsonAsync<JsonDocument>();
+        var properties = payload!.RootElement.EnumerateObject().Select(property => property.Name).ToArray();
+
+        Assert.Equal(["status"], properties);
+        Assert.True(health.Headers.CacheControl?.NoStore);
+        Assert.Equal("nosniff", Assert.Single(health.Headers.GetValues("X-Content-Type-Options")));
+        Assert.Equal("DENY", Assert.Single(health.Headers.GetValues("X-Frame-Options")));
+    }
+
+    [Fact]
+    public async Task Correlation_id_accepts_safe_values_and_replaces_unsafe_values()
+    {
+        using var client = factory.CreateClient();
+        using var safeRequest = new HttpRequestMessage(HttpMethod.Get, "/health/live");
+        safeRequest.Headers.Add("X-Correlation-ID", "integration-test_123");
+        var safeResponse = await client.SendAsync(safeRequest);
+        Assert.Equal(
+            "integration-test_123",
+            Assert.Single(safeResponse.Headers.GetValues("X-Correlation-ID")));
+
+        using var unsafeRequest = new HttpRequestMessage(HttpMethod.Get, "/health/live");
+        unsafeRequest.Headers.Add("X-Correlation-ID", "unsafe value");
+        var unsafeResponse = await client.SendAsync(unsafeRequest);
+        var replacement = Assert.Single(unsafeResponse.Headers.GetValues("X-Correlation-ID"));
+
+        Assert.NotEqual("unsafe value", replacement);
+        Assert.True(Guid.TryParseExact(replacement, "N", out _));
     }
 
     [Fact]

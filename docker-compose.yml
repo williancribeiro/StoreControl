@@ -6,11 +6,13 @@ services:
     environment:
       ACCEPT_EULA: "Y"
       MSSQL_PID: Developer
-      MSSQL_SA_PASSWORD: ${MSSQL_SA_PASSWORD}
+      MSSQL_SA_PASSWORD: ${MSSQL_SA_PASSWORD:?Execute scripts/Initialize-LocalEnvironment.ps1 antes de iniciar o Compose}
     ports:
       - "127.0.0.1:${SQLSERVER_PORT:-1433}:1433"
     volumes:
       - sqlserver-data:/var/opt/mssql
+    networks:
+      - backend
     healthcheck:
       test:
         [
@@ -24,22 +26,35 @@ services:
 
   redis:
     image: redis:8.2-alpine
-    command: ["redis-server", "--appendonly", "yes"]
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?Execute scripts/Initialize-LocalEnvironment.ps1 antes de iniciar o Compose}
+    command:
+      [
+        "sh",
+        "-c",
+        "exec redis-server --appendonly yes --requirepass \"$${REDIS_PASSWORD}\"",
+      ]
     ports:
       - "127.0.0.1:${REDIS_PORT:-6379}:6379"
     volumes:
       - redis-data:/data
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test:
+        [
+          "CMD-SHELL",
+          "redis-cli --no-auth-warning -a \"$$REDIS_PASSWORD\" ping | grep -q PONG",
+        ]
       interval: 5s
       timeout: 3s
       retries: 10
+    networks:
+      - backend
 
   rabbitmq:
     image: rabbitmq:4.2-management-alpine
     environment:
-      RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER}
-      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS}
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER:-storecontrol}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS:?Execute scripts/Initialize-LocalEnvironment.ps1 antes de iniciar o Compose}
     ports:
       - "127.0.0.1:${RABBITMQ_PORT:-5672}:5672"
       - "127.0.0.1:${RABBITMQ_MANAGEMENT_PORT:-15672}:15672"
@@ -50,6 +65,8 @@ services:
       interval: 10s
       timeout: 5s
       retries: 10
+    networks:
+      - backend
 
   migrator:
     build:
@@ -57,14 +74,18 @@ services:
       dockerfile: docker/migrator.Dockerfile
     environment:
       ConnectionStrings__StoreControl: >-
-        Server=sqlserver,1433;Database=${STORECONTROL_DATABASE:-StoreControl};User Id=sa;Password=${MSSQL_SA_PASSWORD};Encrypt=False;TrustServerCertificate=True
-      Seed__DemoDataEnabled: ${SEED_DEMO_DATA:-true}
-      Seed__AdminPassword: ${DEMO_ADMIN_PASSWORD}
-      Seed__UserPassword: ${DEMO_USER_PASSWORD}
+        Server=sqlserver,1433;Database=${STORECONTROL_DATABASE:-StoreControl};User Id=sa;Password=${MSSQL_SA_PASSWORD:?Execute scripts/Initialize-LocalEnvironment.ps1 antes de iniciar o Compose};Encrypt=False;TrustServerCertificate=True
+      Seed__DemoDataEnabled: ${SEED_DEMO_DATA:-false}
+      Seed__AdminPassword: ${DEMO_ADMIN_PASSWORD:-}
+      Seed__UserPassword: ${DEMO_USER_PASSWORD:-}
     depends_on:
       sqlserver:
         condition: service_healthy
     restart: "no"
+    security_opt:
+      - no-new-privileges:true
+    networks:
+      - backend
 
   api:
     build:
@@ -74,14 +95,20 @@ services:
       ASPNETCORE_ENVIRONMENT: Development
       ASPNETCORE_URLS: http://+:8080
       ConnectionStrings__StoreControl: >-
-        Server=sqlserver,1433;Database=${STORECONTROL_DATABASE:-StoreControl};User Id=sa;Password=${MSSQL_SA_PASSWORD};Encrypt=False;TrustServerCertificate=True
-      Authentication__Jwt__SigningKey: ${JWT_SIGNING_KEY}
+        Server=sqlserver,1433;Database=${STORECONTROL_DATABASE:-StoreControl};User Id=sa;Password=${MSSQL_SA_PASSWORD:?Execute scripts/Initialize-LocalEnvironment.ps1 antes de iniciar o Compose};Encrypt=False;TrustServerCertificate=True
+      Authentication__Jwt__SigningKey: ${JWT_SIGNING_KEY:?Execute scripts/Initialize-LocalEnvironment.ps1 antes de iniciar o Compose}
       Authentication__RefreshToken__CookieSecure: "false"
+      AllowedHosts: localhost;127.0.0.1
     ports:
       - "127.0.0.1:${API_PORT:-5090}:8080"
     depends_on:
       migrator:
         condition: service_completed_successfully
+    security_opt:
+      - no-new-privileges:true
+    networks:
+      - backend
+      - edge
 
   worker:
     build:
@@ -90,7 +117,7 @@ services:
     environment:
       DOTNET_ENVIRONMENT: Development
       ConnectionStrings__StoreControl: >-
-        Server=sqlserver,1433;Database=${STORECONTROL_DATABASE:-StoreControl};User Id=sa;Password=${MSSQL_SA_PASSWORD};Encrypt=False;TrustServerCertificate=True
+        Server=sqlserver,1433;Database=${STORECONTROL_DATABASE:-StoreControl};User Id=sa;Password=${MSSQL_SA_PASSWORD:?Execute scripts/Initialize-LocalEnvironment.ps1 antes de iniciar o Compose};Encrypt=False;TrustServerCertificate=True
     depends_on:
       migrator:
         condition: service_completed_successfully
@@ -98,6 +125,10 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+    security_opt:
+      - no-new-privileges:true
+    networks:
+      - backend
 
   web:
     build:
@@ -107,8 +138,16 @@ services:
       - "127.0.0.1:${WEB_PORT:-5173}:80"
     depends_on:
       - api
+    security_opt:
+      - no-new-privileges:true
+    networks:
+      - edge
 
 volumes:
   sqlserver-data:
   redis-data:
   rabbitmq-data:
+
+networks:
+  backend:
+  edge:
