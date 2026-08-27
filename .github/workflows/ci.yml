@@ -1,0 +1,81 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    services:
+      sqlserver:
+        image: mcr.microsoft.com/mssql/server:2022-CU26-ubuntu-22.04
+        env:
+          ACCEPT_EULA: Y
+          MSSQL_PID: Developer
+          MSSQL_SA_PASSWORD: StoreControl_CI_Only_2026!
+        ports:
+          - 1433:1433
+        options: >-
+          --health-cmd "/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P 'StoreControl_CI_Only_2026!' -C -Q 'SELECT 1' -b -o /dev/null"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 15
+          --health-start-period 20s
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Restore .NET tools
+        run: dotnet tool restore
+
+      - name: Restore backend
+        run: dotnet restore StoreControl.sln
+
+      - name: Build backend
+        run: dotnet build StoreControl.sln --configuration Release --no-restore
+
+      - name: Test backend
+        env:
+          STORECONTROL_TEST_DB_CONNECTION: Server=localhost,1433;Database=master;User Id=sa;Password=StoreControl_CI_Only_2026!;Encrypt=False;TrustServerCertificate=True
+        run: dotnet test StoreControl.sln --configuration Release --no-build
+
+      - name: Validate migration script
+        env:
+          STORECONTROL_DB_CONNECTION: Server=localhost,1433;Database=StoreControl_CI_Metadata;User Id=sa;Password=NotUsed_ForScript_Only_2026!;Encrypt=False;TrustServerCertificate=True
+        run: >-
+          dotnet ef migrations script --idempotent
+          --project backend/src/StoreControl.Infrastructure
+          --startup-project backend/src/StoreControl.Infrastructure
+          --context StoreControlDbContext
+          --output migration.sql
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: frontend/StoreControl.Web/package-lock.json
+
+      - name: Install frontend dependencies
+        working-directory: frontend/StoreControl.Web
+        run: npm ci
+
+      - name: Typecheck frontend
+        working-directory: frontend/StoreControl.Web
+        run: npm run typecheck
+
+      - name: Lint frontend
+        working-directory: frontend/StoreControl.Web
+        run: npm run lint
+
+      - name: Build frontend
+        working-directory: frontend/StoreControl.Web
+        run: npm run build

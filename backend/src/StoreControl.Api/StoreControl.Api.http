@@ -1,0 +1,15 @@
+@StoreControl_ApiUrl = http://localhost:5090
+
+GET {{StoreControl_ApiUrl}}/health/live
+Accept: application/json
+
+###
+
+GET {{StoreControl_ApiUrl}}/health/ready
+Accept: application/json
+
+###
+
+GET {{StoreControl_ApiUrl}}/api/smoke
+Accept: application/json
+X-Correlation-ID: storecontrol-http-file

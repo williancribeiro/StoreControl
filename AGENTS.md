@@ -1,0 +1,12 @@
+# StoreControl agent instructions
+
+- Preserve the modular monolith: Domain has no infrastructure dependencies; Application depends on Domain; Infrastructure depends on Application and Domain; API, Worker and DbMigrator are composition roots.
+- Do not introduce intentional bugs, fake implementations, fake successes, hardcoded real credentials or unsafe SQL into the stable baseline.
+- Build backend with `dotnet restore StoreControl.sln` and `dotnet build StoreControl.sln --no-restore`.
+- Run backend tests with `dotnet test StoreControl.sln --no-build`.
+- Validate frontend in `frontend/StoreControl.Web` with `npm ci`, `npm run typecheck`, `npm run lint` and `npm run build`.
+- Keep migrations in `StoreControl.Infrastructure`; the API must not migrate the database automatically.
+- Add tests in the same phase as behavior, proportional to its business and concurrency risk.
+- Update affected files in `docs/` and always update `docs/project-state.md` when implementation state, commands, migrations, services or validation results change.
+- The canonical scope is in `docs/specification.md`; architectural decisions are in `docs/architecture.md` and `docs/adr/`.
+- A change is complete only when the relevant backend build/tests, frontend checks, migrations and documented local execution are verified. Document environmental blockers precisely.
