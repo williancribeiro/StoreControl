@@ -1,6 +1,6 @@
 # Frontend
 
-StoreControl.Web is a separate React, TypeScript and Vite application. React Router owns nested routes, Axios owns HTTP concerns, and React Hook Form is used for login and administration forms.
+StoreControl.Web is a separate React, TypeScript and Vite application. React Router owns nested routes, Axios owns HTTP concerns, and React Hook Form is used for authenticated write forms.
 
 ## Structure
 
@@ -21,6 +21,11 @@ StoreControl.Web is a separate React, TypeScript and Vite application. React Rou
     │   │   ├── CustomersPage / SuppliersPage
     │   │   ├── shared party form and pagination
     │   │   └── registration service/types
+    │   ├── inventory/
+    │   │   ├── StockPositionsPage
+    │   │   ├── StockMovementsPage
+    │   │   ├── StockAdjustmentsPage
+    │   │   └── inventory service/types
     │   └── system/SmokePage
     ├── routes/
     └── shared/
@@ -47,6 +52,9 @@ No browser storage contains tokens. Full page reloads therefore require refresh,
 - /registrations/products;
 - /registrations/customers;
 - /registrations/suppliers;
+- /inventory/positions;
+- /inventory/movements;
+- /inventory/adjustments;
 - /system/smoke;
 - /access-denied.
 
@@ -63,5 +71,8 @@ ProtectedRoute handles authentication and PermissionRoute handles feature visibi
 - category, product, customer and supplier tables with server pagination, filters, search and sort;
 - create/edit forms with React Hook Form, permission-aware actions, active state and rowversion;
 - product category binding and decimal price inputs.
+- stock position by product/store with minimum and low-stock status;
+- movement history with signed change, before/after, actor and correlation;
+- positive/negative adjustment form that loads the current rowversion and reports 409 conflicts honestly.
 
 Vite proxies /api and /health to localhost:5090. Docker Nginx proxies the same paths to the API container, so cookies remain same-origin.

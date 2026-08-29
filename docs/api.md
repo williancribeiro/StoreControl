@@ -45,6 +45,17 @@ All collection endpoints accept page, pageSize, search, isActive, sortBy and sor
 
 POST returns 201 with the created representation. PUT returns the updated representation and requires rowVersion. Duplicate code, barcode or document and stale writes return 409. Invalid money, category, pagination or sort input returns validation Problem Details 400. Resources are inactivated rather than deleted.
 
+## Inventory
+
+- GET /api/inventory/balances: `inventory.read`; page/pageSize, search, storeId, productId, belowMinimum, sortBy and sortDirection;
+- GET /api/inventory/balances/{storeId}/{productId}: `inventory.read`; returns a virtual zero position when the persisted aggregate does not exist yet;
+- PUT /api/inventory/balances/{storeId}/{productId}/minimum: `inventory.manage`; decimal minimumQuantity and current rowVersion;
+- GET /api/inventory/movements: `inventory.read`; page/pageSize, search, storeId, productId, type, fromUtc, toUtc and sorting;
+- GET /api/inventory/movements/{movementId}: `inventory.read` and store scope;
+- POST /api/inventory/adjustments: `inventory.manage`; storeId, productId, positive/negative direction, decimal quantity, required reason and current rowVersion.
+
+Successful adjustment creation returns 201 with both updated position and movement. Insufficient stock, stale rowversion and concurrent aggregate creation return 409. Store scope is always enforced on the server.
+
 ## Foundation
 
 - GET /api/smoke: authenticated real API-to-SQL query with diagnostic metadata;

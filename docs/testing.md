@@ -10,6 +10,7 @@ StoreControl.UnitTests currently verifies:
 - Category normalization and active-state changes;
 - Product barcode/money validation and deterministic decimal rounding;
 - Customer/supplier document, e-mail and active-state rules.
+- StockBalance quantity precision, movement direction, before/after arithmetic, insufficient-stock rejection and low-stock calculation.
 
 ## Integration tests
 
@@ -33,6 +34,10 @@ Coverage currently includes:
 - category/product create and link, decimal persistence, duplicate conflict, stale rowversion, inactivation/reactivation and active-category invariant;
 - product seed search, active/category filters, sort and pagination;
 - customer document normalization/duplicate conflict plus Vendedor/Administrador policy differences for customers and suppliers.
+- inventory migration and seed integrity, signed ledger, atomic adjustment rollback, store scope, role authorization and minimum-stock concurrency;
+- two concurrent stock exits sharing one rowversion, proving exactly one writer/movement succeeds;
+- virtual zero positions for a newly created product and tracked creation on its first adjustment;
+- SQL constraint rejection of a direct negative balance.
 
 Set STORECONTROL_TEST_DB_CONNECTION to a SQL Server connection with create/drop database permission. The connection's database name is replaced with a safe unique test name. `scripts/Set-LocalEnvironment.ps1` prepares this value from the ignored local `.env`. GitHub Actions starts SQL Server with a newly generated masked password for each run rather than storing a working credential in the workflow.
 

@@ -64,7 +64,20 @@ For unexpected access after an administration change, compare the JWT security-s
     → StoreControlDbContext
     → catalog or parties table
 
-For a 400, inspect the ValidationProblemDetails fields and domain normalization rules. For a 409, distinguish the SQL-backed unique conflict from a stale Base64 rowVersion. For product/category problems, verify catalog.Products.CategoryId, category IsActive and the FK. Product quantity is not present here; when inventory arrives it must be debugged through store stock and movements rather than this table.
+For a 400, inspect the ValidationProblemDetails fields and domain normalization rules. For a 409, distinguish the SQL-backed unique conflict from a stale Base64 rowVersion. For product/category problems, verify catalog.Products.CategoryId, category IsActive and the FK. Product quantity is not present in catalog.Products; debug it through inventory.StockBalances for the exact store and reconcile it against inventory.StockMovements.
+
+## Inventory
+
+    Browser inventory page
+    → inventoryService Axios request
+    → inventory.read or inventory.manage policy
+    → InventoryController
+    → InventoryService store-scope check
+    → StockBalance Domain rules
+    → EF Core transaction
+    → inventory.StockBalances + inventory.StockMovements
+
+For an unexpected quantity, filter movements by both StoreId and ProductId and compare their signed sum with QuantityOnHand. For a 409, reload the position and compare rowversion before retrying. For a 403, inspect both the permission claim and security.UserStoreRoles. A failed adjustment should change neither table; use the request correlation ID to find its structured API log.
 
 ## Foundation smoke
 

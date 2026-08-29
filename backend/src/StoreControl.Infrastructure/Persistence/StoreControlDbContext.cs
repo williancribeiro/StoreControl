@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 using StoreControl.Domain.Catalog;
+using StoreControl.Domain.Inventory;
 using StoreControl.Domain.Parties;
 using StoreControl.Domain.Stores;
 using StoreControl.Infrastructure.Identity;
@@ -23,6 +24,10 @@ public sealed class StoreControlDbContext(DbContextOptions<StoreControlDbContext
     public DbSet<Customer> Customers => Set<Customer>();
 
     public DbSet<Supplier> Suppliers => Set<Supplier>();
+
+    public DbSet<StockBalance> StockBalances => Set<StockBalance>();
+
+    public DbSet<StockMovement> StockMovements => Set<StockMovement>();
 
     public DbSet<Permission> Permissions => Set<Permission>();
 

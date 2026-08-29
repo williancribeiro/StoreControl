@@ -16,6 +16,7 @@ internal sealed class DatabaseSeeder(
     UserManager<ApplicationUser> userManager,
     StoreControlDbContext dbContext,
     MasterDataSeeder masterDataSeeder,
+    InventorySeeder inventorySeeder,
     IOptions<DemoSeedOptions> seedOptions,
     ILogger<DatabaseSeeder> logger) : IDatabaseSeeder
 {
@@ -35,7 +36,9 @@ internal sealed class DatabaseSeeder(
             [PermissionCodes.CustomersRead] = "Consultar clientes.",
             [PermissionCodes.CustomersManage] = "Criar, alterar, ativar e inativar clientes.",
             [PermissionCodes.SuppliersRead] = "Consultar fornecedores.",
-            [PermissionCodes.SuppliersManage] = "Criar, alterar, ativar e inativar fornecedores."
+            [PermissionCodes.SuppliersManage] = "Criar, alterar, ativar e inativar fornecedores.",
+            [PermissionCodes.InventoryRead] = "Consultar posição e histórico de estoque nas lojas permitidas.",
+            [PermissionCodes.InventoryManage] = "Registrar ajustes e configurar estoque mínimo nas lojas permitidas."
         };
 
     public async Task SeedAsync(CancellationToken cancellationToken)
@@ -44,6 +47,7 @@ internal sealed class DatabaseSeeder(
         await EnsurePermissionsAsync(cancellationToken);
         await EnsureRolePermissionsAsync(cancellationToken);
         await EnsureCatalogAndPartiesRolePermissionsAsync(cancellationToken);
+        await EnsureInventoryRolePermissionsAsync(cancellationToken);
         var stores = await EnsureStoresAsync(cancellationToken);
 
         if (seedOptions.Value.DemoDataEnabled)
@@ -51,6 +55,7 @@ internal sealed class DatabaseSeeder(
             ValidateDemoPasswords(seedOptions.Value);
             await EnsureDemoUsersAsync(stores, seedOptions.Value, cancellationToken);
             await masterDataSeeder.SeedAsync(cancellationToken);
+            await inventorySeeder.SeedAsync(cancellationToken);
             logger.LogInformation("StoreControl demonstration users are ready");
         }
         else
@@ -257,6 +262,63 @@ internal sealed class DatabaseSeeder(
         await dbContext.SaveChangesAsync(cancellationToken);
 
         return await dbContext.Stores.ToDictionaryAsync(store => store.Code, cancellationToken);
+    }
+
+    private async Task EnsureInventoryRolePermissionsAsync(CancellationToken cancellationToken)
+    {
+        const string seedKey = "inventory-permissions-v1";
+        if (await dbContext.FoundationRecords.AnyAsync(record => record.Key == seedKey, cancellationToken))
+        {
+            return;
+        }
+
+        var roles = await dbContext.Roles.ToDictionaryAsync(role => role.Name!, cancellationToken);
+        var permissions = await dbContext.Permissions.ToDictionaryAsync(permission => permission.Code, cancellationToken);
+        var mappings = new Dictionary<string, IReadOnlyCollection<string>>(StringComparer.Ordinal)
+        {
+            [RoleNames.Manager] = [PermissionCodes.InventoryRead, PermissionCodes.InventoryManage],
+            [RoleNames.Seller] = [PermissionCodes.InventoryRead],
+            [RoleNames.StockClerk] = [PermissionCodes.InventoryRead, PermissionCodes.InventoryManage]
+        };
+        var affectedRoleIds = mappings.Keys.Select(roleName => roles[roleName].Id).ToArray();
+
+        foreach (var (roleName, permissionCodes) in mappings)
+        {
+            var roleId = roles[roleName].Id;
+            var existingIds = await dbContext.RolePermissions
+                .Where(mapping => mapping.RoleId == roleId)
+                .Select(mapping => mapping.PermissionId)
+                .ToListAsync(cancellationToken);
+            dbContext.RolePermissions.AddRange(permissionCodes
+                .Select(code => permissions[code])
+                .Where(permission => !existingIds.Contains(permission.Id))
+                .Select(permission => new RolePermission
+                {
+                    RoleId = roleId,
+                    PermissionId = permission.Id
+                }));
+        }
+
+        var affectedUserIds = await dbContext.UserStoreRoles
+            .Where(assignment => affectedRoleIds.Contains(assignment.RoleId))
+            .Select(assignment => assignment.UserId)
+            .Distinct()
+            .ToListAsync(cancellationToken);
+        var affectedUsers = await dbContext.Users
+            .Where(user => affectedUserIds.Contains(user.Id))
+            .ToListAsync(cancellationToken);
+        foreach (var user in affectedUsers)
+        {
+            user.SecurityStamp = Guid.NewGuid().ToString("N");
+        }
+
+        dbContext.FoundationRecords.Add(new FoundationRecord
+        {
+            Key = seedKey,
+            Value = "applied",
+            UpdatedAtUtc = DateTime.UtcNow
+        });
+        await dbContext.SaveChangesAsync(cancellationToken);
     }
 
     private async Task EnsureDemoUsersAsync(

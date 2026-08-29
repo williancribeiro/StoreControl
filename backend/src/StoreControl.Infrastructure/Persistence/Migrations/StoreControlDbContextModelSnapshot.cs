@@ -250,6 +250,134 @@ namespace StoreControl.Infrastructure.Persistence.Migrations
                         });
                 });
 
+            modelBuilder.Entity("StoreControl.Domain.Inventory.StockBalance", b =>
+                {
+                    b.Property<int>("StoreId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("ProductId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasPrecision(3)
+                        .HasColumnType("datetime2(3)");
+
+                    b.Property<decimal>("MinimumQuantity")
+                        .HasPrecision(18, 3)
+                        .HasColumnType("decimal(18,3)");
+
+                    b.Property<decimal>("QuantityOnHand")
+                        .HasPrecision(18, 3)
+                        .HasColumnType("decimal(18,3)");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.Property<DateTime>("UpdatedAtUtc")
+                        .HasPrecision(3)
+                        .HasColumnType("datetime2(3)");
+
+                    b.HasKey("StoreId", "ProductId");
+
+                    b.HasIndex("ProductId", "StoreId");
+
+                    b.HasIndex("StoreId", "QuantityOnHand", "MinimumQuantity");
+
+                    b.ToTable("StockBalances", "inventory", t =>
+                        {
+                            t.HasCheckConstraint("CK_StockBalances_MinimumQuantity_NonNegative", "[MinimumQuantity] >= 0");
+
+                            t.HasCheckConstraint("CK_StockBalances_QuantityOnHand_NonNegative", "[QuantityOnHand] >= 0");
+                        });
+                });
+
+            modelBuilder.Entity("StoreControl.Domain.Inventory.StockMovement", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<string>("CorrelationId")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("nvarchar(128)");
+
+                    b.Property<Guid>("CreatedByUserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("OccurredAtUtc")
+                        .HasPrecision(3)
+                        .HasColumnType("datetime2(3)");
+
+                    b.Property<int>("ProductId")
+                        .HasColumnType("int");
+
+                    b.Property<decimal>("QuantityAfter")
+                        .HasPrecision(18, 3)
+                        .HasColumnType("decimal(18,3)");
+
+                    b.Property<decimal>("QuantityBefore")
+                        .HasPrecision(18, 3)
+                        .HasColumnType("decimal(18,3)");
+
+                    b.Property<decimal>("QuantityChange")
+                        .HasPrecision(18, 3)
+                        .HasColumnType("decimal(18,3)");
+
+                    b.Property<string>("Reason")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<string>("ReferenceId")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("ReferenceType")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<int>("StoreId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("Type")
+                        .HasColumnType("int")
+                        .HasColumnName("MovementType");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CreatedByUserId");
+
+                    b.HasIndex("ProductId", "OccurredAtUtc")
+                        .IsDescending(false, true);
+
+                    b.HasIndex("ReferenceType", "ReferenceId")
+                        .HasFilter("[ReferenceType] IS NOT NULL");
+
+                    b.HasIndex("StoreId", "OccurredAtUtc")
+                        .IsDescending(false, true);
+
+                    b.HasIndex("StoreId", "ProductId");
+
+                    b.ToTable("StockMovements", "inventory", t =>
+                        {
+                            t.HasCheckConstraint("CK_StockMovements_BalanceEquation", "[QuantityAfter] = [QuantityBefore] + [QuantityChange]");
+
+                            t.HasCheckConstraint("CK_StockMovements_Balances_NonNegative", "[QuantityBefore] >= 0 AND [QuantityAfter] >= 0");
+
+                            t.HasCheckConstraint("CK_StockMovements_QuantityChange_NonZero", "[QuantityChange] <> 0");
+
+                            t.HasCheckConstraint("CK_StockMovements_Reason_NotBlank", "LEN(LTRIM(RTRIM([Reason]))) > 0");
+
+                            t.HasCheckConstraint("CK_StockMovements_TypeDirection", "([MovementType] IN (1, 3, 5, 7, 8, 10) AND [QuantityChange] > 0) OR ([MovementType] IN (2, 4, 6, 9) AND [QuantityChange] < 0)");
+                        });
+                });
+
             modelBuilder.Entity("StoreControl.Domain.Parties.Customer", b =>
                 {
                     b.Property<int>("Id")
@@ -759,6 +887,56 @@ namespace StoreControl.Infrastructure.Persistence.Migrations
                         .IsRequired();
 
                     b.Navigation("Category");
+                });
+
+            modelBuilder.Entity("StoreControl.Domain.Inventory.StockBalance", b =>
+                {
+                    b.HasOne("StoreControl.Domain.Catalog.Product", "Product")
+                        .WithMany()
+                        .HasForeignKey("ProductId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("StoreControl.Domain.Stores.Store", "Store")
+                        .WithMany()
+                        .HasForeignKey("StoreId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Product");
+
+                    b.Navigation("Store");
+                });
+
+            modelBuilder.Entity("StoreControl.Domain.Inventory.StockMovement", b =>
+                {
+                    b.HasOne("StoreControl.Infrastructure.Identity.ApplicationUser", null)
+                        .WithMany()
+                        .HasForeignKey("CreatedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("StoreControl.Domain.Catalog.Product", "Product")
+                        .WithMany()
+                        .HasForeignKey("ProductId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("StoreControl.Domain.Stores.Store", "Store")
+                        .WithMany()
+                        .HasForeignKey("StoreId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("StoreControl.Domain.Inventory.StockBalance", null)
+                        .WithMany()
+                        .HasForeignKey("StoreId", "ProductId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Product");
+
+                    b.Navigation("Store");
                 });
 
             modelBuilder.Entity("StoreControl.Infrastructure.Identity.RefreshToken", b =>

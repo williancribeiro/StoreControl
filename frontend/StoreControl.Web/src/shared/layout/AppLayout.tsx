@@ -2,7 +2,7 @@ import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../features/auth/useAuth'
 import { permissions } from '../../features/auth/authTypes'
 
-const plannedModules = ['Vendas', 'Compras', 'Estoque', 'Caixa', 'Relatórios']
+const plannedModules = ['Vendas', 'Compras', 'Caixa', 'Relatórios']
 
 export function AppLayout() {
   const { user, hasPermission, logout } = useAuth()
@@ -42,6 +42,16 @@ export function AppLayout() {
           )}
           {hasPermission(permissions.suppliersRead) && (
             <NavLink className="nav-item" to="/registrations/suppliers">Fornecedores</NavLink>
+          )}
+          {hasPermission(permissions.inventoryRead) && (
+            <>
+              <span className="nav-section-label">Estoque</span>
+              <NavLink className="nav-item" to="/inventory/positions">Posição atual</NavLink>
+              <NavLink className="nav-item" to="/inventory/movements">Movimentações</NavLink>
+              {hasPermission(permissions.inventoryManage) && (
+                <NavLink className="nav-item" to="/inventory/adjustments">Ajustes</NavLink>
+              )}
+            </>
           )}
           {plannedModules.map((module) => (
             <span className="nav-item nav-item-disabled" key={module}>
@@ -119,6 +129,9 @@ function getPageTitle(pathname: string) {
   if (pathname.includes('/products')) return 'Catálogo de produtos'
   if (pathname.includes('/customers')) return 'Clientes'
   if (pathname.includes('/suppliers')) return 'Fornecedores'
+  if (pathname.includes('/inventory/positions')) return 'Posição de estoque'
+  if (pathname.includes('/inventory/movements')) return 'Histórico de estoque'
+  if (pathname.includes('/inventory/adjustments')) return 'Ajustes de estoque'
   if (pathname.includes('/users')) return 'Usuários'
   if (pathname.includes('/roles')) return 'Perfis e permissões'
   if (pathname.includes('/stores')) return 'Lojas e filiais'

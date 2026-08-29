@@ -4,7 +4,7 @@ Status: categories, products, customers and suppliers are implemented end to end
 
 ## Boundaries
 
-Catalog owns Category and Product. Parties owns Customer and Supplier. These are master-data modules: Product deliberately has no quantity or store reference. Current quantity will be introduced by the inventory module as a Product + Store + Stock relationship with stock movements.
+Catalog owns Category and Product. Parties owns Customer and Supplier. These are master-data modules: Product deliberately has no quantity or store reference. Inventory owns current quantity as a Product + Store + StockBalance relationship with explanatory movements.
 
 The request path is:
 

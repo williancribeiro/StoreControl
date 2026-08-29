@@ -21,6 +21,11 @@ parties:
 
 - Customers and Suppliers: unique code, filtered-unique normalized optional document, optional contact data, active state, timestamps and rowversion.
 
+inventory:
+
+- StockBalances: composite product/store key, decimal(18,3) current and minimum quantities, timestamps and rowversion;
+- StockMovements: signed decimal(18,3) change, before/after balances, movement type, reason, responsible user, UTC occurrence, correlation and optional business reference.
+
 security:
 
 - Users, Roles, UserRoles, UserClaims, RoleClaims, UserLogins and UserTokens from ASP.NET Core Identity;
@@ -35,21 +40,22 @@ Normalized e-mail and normalized username are protected by filtered unique index
 - 20260827124717_InitialFoundation: creates platform.FoundationRecords and the version row;
 - 20260827133444_AuthenticationAndStores: creates security and organization schemas, Identity tables, permissions, stores, store-scoped roles, refresh sessions, indexes, FKs and rowversion columns.
 - 20260827210014_MainRegistrations: creates catalog and parties schemas, the four master-data tables, price checks, foreign keys, filtered unique indexes, query indexes and rowversion columns.
+- 20260828140319_Inventory: creates inventory.StockBalances and StockMovements with composite relationship, rowversion, ledger constraints, restrictive foreign keys and history/query indexes.
 
 All migrations were validated from an empty database and in a generated idempotent SQL script.
 
 ## Seeds
 
-DbMigrator seeds system roles, permission definitions, default mappings and CENTRAL, NORTE and SUL idempotently. With the explicit demo switch it also ensures demo users plus 8 categories, 120 products, 30 customers and 12 suppliers. Re-running does not duplicate data, reset passwords or overwrite existing master records.
+DbMigrator seeds system roles, permission definitions, default mappings and CENTRAL, NORTE and SUL idempotently. With the explicit demo switch it also ensures demo users plus 8 categories, 120 products, 30 customers, 12 suppliers and a coherent initial position/movement for every active product/store pair. Re-running does not duplicate data, reset passwords, overwrite existing master records or repeat initial movements.
 
 ## Concurrency and constraints
 
-Store and main-registration updates supply Base64 rowversion; stale updates return HTTP 409. Refresh rotation also uses rowversion so two requests cannot successfully rotate the same token. EF SaveChanges provides the atomic update/insert transaction for token rotation.
+Store, main-registration and stock-balance updates supply Base64 rowversion; stale updates return HTTP 409. Stock adjustments use an explicit ReadCommitted transaction inside the SQL retry execution strategy so the balance update and ledger insert commit together. Refresh rotation also uses rowversion so two requests cannot successfully rotate the same token.
 
-Application validation improves error messages, but SQL unique indexes and foreign keys remain the final integrity boundary.
+Application validation improves error messages, but SQL unique indexes, foreign keys and inventory check constraints remain the final integrity boundary. Inventory constraints reject negative balances, zero changes, invalid movement direction and inconsistent before/change/after arithmetic.
 
 ## Configuration
 
 The connection key is ConnectionStrings:StoreControl. It must come from environment variables, local secrets or Compose. EF design-time commands also accept STORECONTROL_DB_CONNECTION.
 
-Future inventory, purchasing, sales, cash, reporting and integration schemas will be introduced only with their modules. Views and stored procedures remain deferred until a query has a concrete benefit; the current registration queries are ordinary indexed EF Core reads.
+Future purchasing, sales, cash, reporting and integration schemas will be introduced only with their modules. Views and stored procedures remain deferred until a query has a concrete benefit; current inventory position/history queries remain understandable indexed EF Core SQL.

@@ -4,7 +4,7 @@ StoreControl é um laboratório de estudos que simula um sistema empresarial de 
 
 ## Estado atual
 
-A fundação, segurança, lojas e os cadastros de categorias, produtos, clientes e fornecedores estão implementados. Estoque, compras, vendas, caixa, relatórios, cache e mensageria de negócio permanecem pendentes. O estado verificável está em [docs/project-state.md](docs/project-state.md).
+A fundação, segurança, lojas, cadastros e estoque por produto/loja estão implementados. Compras, vendas, transferências, caixa, relatórios, cache e mensageria de negócio permanecem pendentes. O estado verificável está em [docs/project-state.md](docs/project-state.md).
 
 ## Stack ativa
 
@@ -50,7 +50,7 @@ São criadas somente quando `SEED_DEMO_DATA=true`, opção ativada pelo parâmet
 
 As senhas aleatórias ficam exclusivamente no `.env` local, nas variáveis `DEMO_ADMIN_PASSWORD` e `DEMO_USER_PASSWORD`. Não reutilize, compartilhe ou versione esse arquivo. Os endereços `.local` não representam contas reais.
 
-Com o seed demonstrativo habilitado, o migrador também garante 8 categorias, 120 produtos, 30 clientes e 12 fornecedores coerentes e idempotentes. Isso permite testar busca, filtros e paginação sem cadastro manual inicial.
+Com o seed demonstrativo habilitado, o migrador também garante 8 categorias, 120 produtos, 30 clientes, 12 fornecedores e posições/movimentações iniciais coerentes para as três lojas. Isso permite testar busca, filtros, paginação e estoque baixo sem cadastro manual inicial.
 
 ## Desenvolvimento híbrido
 
@@ -113,6 +113,7 @@ Para gerar um script idempotente:
 - [docs/architecture.md](docs/architecture.md): arquitetura e dependências;
 - [docs/authentication.md](docs/authentication.md): autenticação, sessão e autorização;
 - [docs/master-data.md](docs/master-data.md): categorias, produtos, clientes e fornecedores;
+- [docs/inventory-flow.md](docs/inventory-flow.md): posição, movimentações, ajustes e concorrência;
 - [docs/debugging-map.md](docs/debugging-map.md): caminhos de diagnóstico;
 - [docs/security.md](docs/security.md): limites de segurança e configuração local;
 - [docs/project-state.md](docs/project-state.md): estado, migrations e validações.

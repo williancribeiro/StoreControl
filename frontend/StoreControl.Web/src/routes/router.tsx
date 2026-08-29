@@ -12,6 +12,9 @@ import { CategoriesPage } from '../features/registrations/CategoriesPage'
 import { CustomersPage } from '../features/registrations/CustomersPage'
 import { ProductsPage } from '../features/registrations/ProductsPage'
 import { SuppliersPage } from '../features/registrations/SuppliersPage'
+import { StockAdjustmentsPage } from '../features/inventory/StockAdjustmentsPage'
+import { StockMovementsPage } from '../features/inventory/StockMovementsPage'
+import { StockPositionsPage } from '../features/inventory/StockPositionsPage'
 import { AppLayout } from '../shared/layout/AppLayout'
 import { SmokePage } from '../features/system/SmokePage'
 
@@ -46,6 +49,17 @@ export const router = createBrowserRouter([
           {
             element: <PermissionRoute permission={permissions.suppliersRead} />,
             children: [{ path: 'registrations/suppliers', element: <SuppliersPage /> }],
+          },
+          {
+            element: <PermissionRoute permission={permissions.inventoryRead} />,
+            children: [
+              { path: 'inventory/positions', element: <StockPositionsPage /> },
+              { path: 'inventory/movements', element: <StockMovementsPage /> },
+            ],
+          },
+          {
+            element: <PermissionRoute permission={permissions.inventoryManage} />,
+            children: [{ path: 'inventory/adjustments', element: <StockAdjustmentsPage /> }],
           },
           {
             element: <PermissionRoute permission={permissions.usersRead} />,
