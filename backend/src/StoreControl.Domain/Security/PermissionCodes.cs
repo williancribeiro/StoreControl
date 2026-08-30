@@ -20,6 +20,10 @@ public static class PermissionCodes
     public const string InventoryManage = "inventory.manage";
     public const string PurchasesRead = "purchases.read";
     public const string PurchasesManage = "purchases.manage";
+    public const string SalesRead = "sales.read";
+    public const string SalesManage = "sales.manage";
+    public const string CashRead = "cash.read";
+    public const string CashManage = "cash.manage";
 
     public static readonly IReadOnlyCollection<string> All =
     [
@@ -40,6 +44,10 @@ public static class PermissionCodes
         InventoryRead,
         InventoryManage,
         PurchasesRead,
-        PurchasesManage
+        PurchasesManage,
+        SalesRead,
+        SalesManage,
+        CashRead,
+        CashManage
     ];
 }

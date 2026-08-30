@@ -18,6 +18,7 @@ internal sealed class DatabaseSeeder(
     MasterDataSeeder masterDataSeeder,
     InventorySeeder inventorySeeder,
     PurchaseSeeder purchaseSeeder,
+    CashRegisterSeeder cashRegisterSeeder,
     IOptions<DemoSeedOptions> seedOptions,
     ILogger<DatabaseSeeder> logger) : IDatabaseSeeder
 {
@@ -41,7 +42,11 @@ internal sealed class DatabaseSeeder(
             [PermissionCodes.InventoryRead] = "Consultar posição e histórico de estoque nas lojas permitidas.",
             [PermissionCodes.InventoryManage] = "Registrar ajustes e configurar estoque mínimo nas lojas permitidas.",
             [PermissionCodes.PurchasesRead] = "Consultar pedidos de compra e recebimentos nas lojas permitidas.",
-            [PermissionCodes.PurchasesManage] = "Criar, receber, finalizar e cancelar pedidos nas lojas permitidas."
+            [PermissionCodes.PurchasesManage] = "Criar, receber, finalizar e cancelar pedidos nas lojas permitidas.",
+            [PermissionCodes.SalesRead] = "Consultar vendas nas lojas permitidas.",
+            [PermissionCodes.SalesManage] = "Finalizar vendas e seus pagamentos nas lojas permitidas.",
+            [PermissionCodes.CashRead] = "Consultar sessões e movimentações de caixa nas lojas permitidas.",
+            [PermissionCodes.CashManage] = "Abrir, movimentar e fechar caixas nas lojas permitidas."
         };
 
     public async Task SeedAsync(CancellationToken cancellationToken)
@@ -52,7 +57,9 @@ internal sealed class DatabaseSeeder(
         await EnsureCatalogAndPartiesRolePermissionsAsync(cancellationToken);
         await EnsureInventoryRolePermissionsAsync(cancellationToken);
         await EnsurePurchaseRolePermissionsAsync(cancellationToken);
+        await EnsureSalesAndCashRolePermissionsAsync(cancellationToken);
         var stores = await EnsureStoresAsync(cancellationToken);
+        await cashRegisterSeeder.SeedAsync(cancellationToken);
 
         if (seedOptions.Value.DemoDataEnabled)
         {
@@ -340,6 +347,74 @@ internal sealed class DatabaseSeeder(
         {
             [RoleNames.Manager] = [PermissionCodes.PurchasesRead, PermissionCodes.PurchasesManage],
             [RoleNames.StockClerk] = [PermissionCodes.PurchasesRead, PermissionCodes.PurchasesManage]
+        };
+        var affectedRoleIds = mappings.Keys.Select(roleName => roles[roleName].Id).ToArray();
+
+        foreach (var (roleName, permissionCodes) in mappings)
+        {
+            var roleId = roles[roleName].Id;
+            var existingIds = await dbContext.RolePermissions
+                .Where(mapping => mapping.RoleId == roleId)
+                .Select(mapping => mapping.PermissionId)
+                .ToListAsync(cancellationToken);
+            dbContext.RolePermissions.AddRange(permissionCodes
+                .Select(code => permissions[code])
+                .Where(permission => !existingIds.Contains(permission.Id))
+                .Select(permission => new RolePermission
+                {
+                    RoleId = roleId,
+                    PermissionId = permission.Id
+                }));
+        }
+
+        var affectedUserIds = await dbContext.UserStoreRoles
+            .Where(assignment => affectedRoleIds.Contains(assignment.RoleId))
+            .Select(assignment => assignment.UserId)
+            .Distinct()
+            .ToListAsync(cancellationToken);
+        var affectedUsers = await dbContext.Users
+            .Where(user => affectedUserIds.Contains(user.Id))
+            .ToListAsync(cancellationToken);
+        foreach (var user in affectedUsers)
+        {
+            user.SecurityStamp = Guid.NewGuid().ToString("N");
+        }
+
+        dbContext.FoundationRecords.Add(new FoundationRecord
+        {
+            Key = seedKey,
+            Value = "applied",
+            UpdatedAtUtc = DateTime.UtcNow
+        });
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    private async Task EnsureSalesAndCashRolePermissionsAsync(CancellationToken cancellationToken)
+    {
+        const string seedKey = "sales-cash-permissions-v1";
+        if (await dbContext.FoundationRecords.AnyAsync(record => record.Key == seedKey, cancellationToken))
+        {
+            return;
+        }
+
+        var roles = await dbContext.Roles.ToDictionaryAsync(role => role.Name!, cancellationToken);
+        var permissions = await dbContext.Permissions.ToDictionaryAsync(permission => permission.Code, cancellationToken);
+        var mappings = new Dictionary<string, IReadOnlyCollection<string>>(StringComparer.Ordinal)
+        {
+            [RoleNames.Manager] =
+            [
+                PermissionCodes.SalesRead,
+                PermissionCodes.SalesManage,
+                PermissionCodes.CashRead,
+                PermissionCodes.CashManage
+            ],
+            [RoleNames.Seller] =
+            [
+                PermissionCodes.SalesRead,
+                PermissionCodes.SalesManage,
+                PermissionCodes.CashRead,
+                PermissionCodes.CashManage
+            ]
         };
         var affectedRoleIds = mappings.Keys.Select(roleName => roles[roleName].Id).ToArray();
 

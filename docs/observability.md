@@ -10,4 +10,6 @@ The current foundation provides:
 - liveness and SQL Server readiness checks whose anonymous payload exposes only aggregate status;
 - authenticated foundation smoke details for developers who need SQL time and schema version.
 
+Committed sales log sale ID, store and total only after SQL commit. Cash opening, manual movement and closing log their durable identifiers. Expected validation/conflict paths remain correlated Problem Details instead of method-entry noise. Payment references, credentials and tokens must not be logged.
+
 Metrics, EF Core trace enrichment, RabbitMQ context propagation and local visualization services remain pending until their producing modules exist.

@@ -4,7 +4,7 @@ StoreControl é um laboratório de estudos que simula um sistema empresarial de 
 
 ## Estado atual
 
-A fundação, segurança, lojas, cadastros, estoque por produto/loja e compras/recebimentos estão implementados. Vendas, transferências, caixa, relatórios, cache e mensageria de negócio permanecem pendentes. O estado verificável está em [docs/project-state.md](docs/project-state.md).
+A fundação, segurança, lojas, cadastros, estoque por produto/loja, compras/recebimentos, vendas/pagamentos e caixa estão implementados. Cancelamento de venda, transferências, relatórios, cache e mensageria de negócio permanecem pendentes. O estado verificável está em [docs/project-state.md](docs/project-state.md).
 
 ## Stack ativa
 
@@ -50,7 +50,7 @@ São criadas somente quando `SEED_DEMO_DATA=true`, opção ativada pelo parâmet
 
 As senhas aleatórias ficam exclusivamente no `.env` local, nas variáveis `DEMO_ADMIN_PASSWORD` e `DEMO_USER_PASSWORD`. Não reutilize, compartilhe ou versione esse arquivo. Os endereços `.local` não representam contas reais.
 
-Com o seed demonstrativo habilitado, o migrador também garante 8 categorias, 120 produtos, 30 clientes, 12 fornecedores, posições/movimentações iniciais coerentes para as três lojas e 8 pedidos de compra sem efeito inicial no estoque. Isso permite testar busca, filtros, paginação, estoque baixo e o fluxo de recebimento sem cadastro manual inicial.
+Com o seed demonstrativo habilitado, o migrador também garante 8 categorias, 120 produtos, 30 clientes, 12 fornecedores, posições/movimentações iniciais coerentes para as três lojas, um caixa de referência por loja e 8 pedidos de compra sem efeito inicial no estoque. Isso permite testar busca, filtros, paginação, estoque baixo, recebimento, PDV e caixa sem cadastro manual inicial. Vendas e sessões não são pré-fabricadas: surgem apenas das operações executadas pelo usuário.
 
 ## Desenvolvimento híbrido
 
@@ -115,6 +115,8 @@ Para gerar um script idempotente:
 - [docs/master-data.md](docs/master-data.md): categorias, produtos, clientes e fornecedores;
 - [docs/inventory-flow.md](docs/inventory-flow.md): posição, movimentações, ajustes e concorrência;
 - [docs/purchase-flow.md](docs/purchase-flow.md): pedidos, recebimento, idempotência e integração com estoque;
+- [docs/sales-flow.md](docs/sales-flow.md): venda, pagamentos, transação, concorrência e idempotência;
+- [docs/cash-flow.md](docs/cash-flow.md): abertura, ledger, movimentações e fechamento;
 - [docs/debugging-map.md](docs/debugging-map.md): caminhos de diagnóstico;
 - [docs/security.md](docs/security.md): limites de segurança e configuração local;
 - [docs/project-state.md](docs/project-state.md): estado, migrations e validações.

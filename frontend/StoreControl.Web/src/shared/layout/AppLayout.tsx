@@ -2,7 +2,7 @@ import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../features/auth/useAuth'
 import { permissions } from '../../features/auth/authTypes'
 
-const plannedModules = ['Vendas', 'Caixa', 'Relatórios']
+const plannedModules = ['Relatórios']
 
 export function AppLayout() {
   const { user, hasPermission, logout } = useAuth()
@@ -60,6 +60,24 @@ export function AppLayout() {
                 <NavLink className="nav-item" to="/purchases/new">Nova compra</NavLink>
               )}
               <NavLink className="nav-item" to="/purchases">Histórico</NavLink>
+            </>
+          )}
+          {hasPermission(permissions.salesRead) && (
+            <>
+              <span className="nav-section-label">Vendas</span>
+              {hasPermission(permissions.salesManage) && (
+                <NavLink className="nav-item" to="/sales/new">Nova venda</NavLink>
+              )}
+              <NavLink className="nav-item" to="/sales">Histórico</NavLink>
+            </>
+          )}
+          {hasPermission(permissions.cashRead) && (
+            <>
+              <span className="nav-section-label">Caixa</span>
+              {hasPermission(permissions.cashManage) && (
+                <NavLink className="nav-item" to="/cash/current">Operação atual</NavLink>
+              )}
+              <NavLink className="nav-item" to="/cash/history">Histórico</NavLink>
             </>
           )}
           {plannedModules.map((module) => (
@@ -144,6 +162,12 @@ function getPageTitle(pathname: string) {
   if (pathname === '/purchases/new') return 'Nova compra'
   if (/^\/purchases\/\d+$/.test(pathname)) return 'Detalhes da compra'
   if (pathname === '/purchases') return 'Histórico de compras'
+  if (pathname === '/sales/new') return 'Nova venda'
+  if (/^\/sales\/\d+$/.test(pathname)) return 'Detalhes da venda'
+  if (pathname === '/sales') return 'Histórico de vendas'
+  if (pathname === '/cash/current') return 'Operação de caixa'
+  if (/^\/cash\/sessions\/\d+$/.test(pathname)) return 'Detalhes do caixa'
+  if (pathname === '/cash/history') return 'Histórico de caixas'
   if (pathname.includes('/users')) return 'Usuários'
   if (pathname.includes('/roles')) return 'Perfis e permissões'
   if (pathname.includes('/stores')) return 'Lojas e filiais'

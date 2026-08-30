@@ -16,7 +16,7 @@ StoreControl is a modular monolith. API, Worker and DbMigrator are separate comp
 
 ## Project responsibilities
 
-- Domain: entities and invariants with no EF Core or ASP.NET Core dependency. It owns Store, Category, Product, Customer, Supplier, stock and purchase aggregates, and stable security names/codes.
+- Domain: entities and invariants with no EF Core or ASP.NET Core dependency. It owns Store, Category, Product, Customer, Supplier, stock, purchase, sale and cash aggregates, and stable security names/codes.
 - Application: use-case contracts, response models, exceptions and meaningful infrastructure ports.
 - Infrastructure: EF Core, SQL Server, Identity entities, session persistence, seeding and administration implementations.
 - Api: controllers, JWT issuing and validation, policies, middleware, OpenAPI and Problem Details.
@@ -85,6 +85,26 @@ Purchase receipt:
     → one explicit SQL transaction with locked purchase root
     → purchasing receipt/history + inventory balance/movements
 
+Sale finalization:
+
+    React PDV cart and payments
+    → Axios + Idempotency-Key
+    → JWT sales.manage policy
+    → SalesController → ISaleService
+    → SaleService locks the open cash-session root
+    → Sale + StockBalance + CashSession Domain rules
+    → one SQL transaction
+    → sales rows + inventory exit ledger + cash payment ledger
+
+Cash operation:
+
+    React CashOperationPage
+    → cash.read/cash.manage policy
+    → CashController → ICashService
+    → CashService + CashSession Domain rules
+    → rowversion and locked session transaction
+    → cash session + signed append-only movement
+
 Foundation smoke:
 
     Authenticated browser → React SmokePage → GET /api/smoke → EF Core → SQL Server
@@ -104,6 +124,8 @@ Current schemas:
 - parties: customers and suppliers.
 - inventory: stock balances by product/store and their immutable movement ledger.
 - purchasing: purchase orders, historical items, receipts, receipt items and status history.
+- sales: finalized sales, historical items and exact payment splits;
+- cash: store registers, open/closed sessions and signed movements.
 
 ## Cross-cutting behavior
 
@@ -121,6 +143,7 @@ Current schemas:
 
 - [ADR 0001](adr/0001-modular-monolith-and-single-dbcontext.md): modular monolith and one DbContext;
 - [ADR 0002](adr/0002-jwt-refresh-and-store-scoped-roles.md): JWT, refresh rotation and store-scoped roles.
+- [ADR 0003](adr/0003-transactional-sale-and-cash-ledger.md): transactional finalized sales and signed cash ledger.
 
 Redis and RabbitMQ remain provisioned but unused until a concrete cache or asynchronous workflow exists.
 Local security boundaries and production gaps are documented in [security.md](security.md).

@@ -34,6 +34,18 @@ purchasing:
 - PurchaseReceiptItems: receipt lines linked to the exact order item and product;
 - PurchaseStatusHistory: append-only status, actor, timestamp and description.
 
+sales:
+
+- Sales: unique operation UUID, store/customer/user/cash-session FKs, finalized status/timestamps and decimal(18,2) subtotal/discount/total;
+- SaleItems: immutable product code/name, decimal(18,3) quantity and historical decimal(18,2) price/subtotal;
+- SalePayments: 1–10 positive decimal(18,2) payment splits and optional provider/reference text.
+
+cash:
+
+- CashRegisters: active named terminals with unique code per store and rowversion;
+- CashSessions: idempotent opening UUID, opener/closer, status, physical expected/declared/difference amounts and rowversion;
+- CashMovements: signed Opening/SalePayment/CashIn/CashOut ledger, actor, correlation, reference, optional manual operation UUID and one-to-one sale-payment link.
+
 security:
 
 - Users, Roles, UserRoles, UserClaims, RoleClaims, UserLogins and UserTokens from ASP.NET Core Identity;
@@ -50,21 +62,22 @@ Normalized e-mail and normalized username are protected by filtered unique index
 - 20260827210014_MainRegistrations: creates catalog and parties schemas, the four master-data tables, price checks, foreign keys, filtered unique indexes, query indexes and rowversion columns.
 - 20260828140319_Inventory: creates inventory.StockBalances and StockMovements with composite relationship, rowversion, ledger constraints, restrictive foreign keys and history/query indexes.
 - 20260830144940_PurchasesAndReceiving: creates the purchasing schema, purchase aggregate/receipt/history tables, constraints, rowversion and receipt-reference uniqueness in the inventory ledger.
+- 20260830190812_SalesAndCash: creates sales/cash schemas, finalized sale/item/payment tables, register/session/signed-ledger tables, financial/lifecycle checks, restrictive relationships, rowversion and idempotency/concurrency indexes.
 
 All migrations were validated from an empty database and in a generated idempotent SQL script.
 
 ## Seeds
 
-DbMigrator seeds system roles, permission definitions, default mappings and CENTRAL, NORTE and SUL idempotently. With the explicit demo switch it also ensures demo users plus 8 categories, 120 products, 30 customers, 12 suppliers, a coherent initial position/movement for every active product/store pair and 8 purchase orders (2 created, 6 pending). Re-running does not duplicate data, reset passwords, overwrite existing master records, repeat initial movements or recreate purchase orders.
+DbMigrator seeds system roles, 22 permission definitions, default mappings, CENTRAL/NORTE/SUL and one active CX-01 cash register per store idempotently. With the explicit demo switch it also ensures demo users plus 8 categories, 120 products, 30 customers, 12 suppliers, a coherent initial position/movement for every active product/store pair and 8 purchase orders (2 created, 6 pending). It does not seed artificial sales or cash sessions. Re-running does not duplicate data, reset passwords, overwrite existing master records, repeat initial movements, recreate purchase orders or duplicate registers.
 
 ## Concurrency and constraints
 
-Store, main-registration, purchase and stock-balance updates supply Base64 rowversion; stale updates return HTTP 409. Stock adjustments use an explicit ReadCommitted transaction inside the SQL retry execution strategy so the balance update and ledger insert commit together. Purchase receipt uses the same transaction strategy, locks the purchase root to serialize concurrent receipts, and commits the receipt, purchase status, every balance and movement together. Refresh rotation also uses rowversion so two requests cannot successfully rotate the same token.
+Store, main-registration, purchase, stock-balance and cash-session updates supply Base64 rowversion; stale updates return HTTP 409. Stock adjustments use an explicit ReadCommitted transaction inside the SQL retry execution strategy so the balance update and ledger insert commit together. Purchase receipt uses the same transaction strategy and locks the purchase root. Sale finalization locks the cash-session root and commits the sale, every balance/stock movement, payment and cash movement together; StockBalance rowversion protects contention across different registers. Cash manual/close operations use that same root lock. Refresh rotation also uses rowversion so two requests cannot successfully rotate the same token.
 
-Application validation improves error messages, but SQL unique indexes, foreign keys and check constraints remain the final integrity boundary. Inventory constraints reject negative balances, zero changes, invalid movement direction and inconsistent before/change/after arithmetic. Purchasing constraints protect status ranges, quantity bounds, received-at-most-ordered, line totals and required snapshots. Receipt UUID plus a filtered unique inventory reference index prevent a committed receipt movement from being applied twice.
+Application validation improves error messages, but SQL unique indexes, foreign keys and check constraints remain the final integrity boundary. Inventory constraints reject negative balances, zero changes, invalid movement direction and inconsistent before/change/after arithmetic. Purchasing constraints protect status ranges, quantity bounds, received-at-most-ordered, line totals and required snapshots. Sales constraints protect finalized-only persistence, financial equations, historical data and payment validity. Cash constraints protect lifecycle, signed direction, physical balances and sale-payment linkage. Receipt/sale UUIDs plus filtered business-reference indexes prevent committed stock effects from being applied twice.
 
 ## Configuration
 
 The connection key is ConnectionStrings:StoreControl. It must come from environment variables, local secrets or Compose. EF design-time commands also accept STORECONTROL_DB_CONNECTION.
 
-Future sales, cash, reporting and integration schemas will be introduced only with their modules. Views and stored procedures remain deferred until a query has a concrete benefit; current inventory and purchase queries remain understandable indexed EF Core SQL. Purchase receiving deliberately uses parameterized SQL for the SQL Server `UPDLOCK` root query because EF LINQ has no equivalent lock hint.
+Future reporting and integration schemas will be introduced only with their modules. Views and stored procedures remain deferred until a query has a concrete benefit; current inventory, purchase, sales and cash queries remain understandable indexed EF Core SQL. Purchase receiving, sale finalization and cash mutation deliberately use parameterized SQL for SQL Server `UPDLOCK` root queries because EF LINQ has no equivalent lock hint.

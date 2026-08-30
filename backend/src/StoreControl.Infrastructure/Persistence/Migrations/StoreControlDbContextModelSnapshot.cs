@@ -126,6 +126,222 @@ namespace StoreControl.Infrastructure.Persistence.Migrations
                     b.ToTable("UserTokens", "security");
                 });
 
+            modelBuilder.Entity("StoreControl.Domain.Cash.CashMovement", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<decimal>("Amount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<long>("CashSessionId")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("CorrelationId")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("nvarchar(128)");
+
+                    b.Property<Guid>("CreatedByUserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("OccurredAtUtc")
+                        .HasPrecision(3)
+                        .HasColumnType("datetime2(3)");
+
+                    b.Property<Guid?>("OperationId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int?>("PaymentMethod")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Reason")
+                        .IsRequired()
+                        .HasMaxLength(300)
+                        .HasColumnType("nvarchar(300)");
+
+                    b.Property<string>("ReferenceId")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("ReferenceType")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<long?>("SalePaymentId")
+                        .HasColumnType("bigint");
+
+                    b.Property<int>("Type")
+                        .HasColumnType("int")
+                        .HasColumnName("MovementType");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CreatedByUserId");
+
+                    b.HasIndex("OperationId")
+                        .IsUnique()
+                        .HasFilter("[OperationId] IS NOT NULL");
+
+                    b.HasIndex("SalePaymentId")
+                        .IsUnique()
+                        .HasFilter("[SalePaymentId] IS NOT NULL");
+
+                    b.HasIndex("CashSessionId", "OccurredAtUtc");
+
+                    b.HasIndex("ReferenceType", "ReferenceId")
+                        .HasFilter("[ReferenceType] IS NOT NULL");
+
+                    b.ToTable("CashMovements", "cash", t =>
+                        {
+                            t.HasCheckConstraint("CK_CashMovements_Reason_NotBlank", "LEN(LTRIM(RTRIM([Reason]))) > 0");
+
+                            t.HasCheckConstraint("CK_CashMovements_Reference", "([ReferenceType] IS NULL AND [ReferenceId] IS NULL) OR ([ReferenceType] IS NOT NULL AND [ReferenceId] IS NOT NULL)");
+
+                            t.HasCheckConstraint("CK_CashMovements_SalePayment", "([MovementType] = 2 AND [PaymentMethod] BETWEEN 1 AND 6 AND [SalePaymentId] IS NOT NULL) OR ([MovementType] <> 2 AND [PaymentMethod] IS NULL AND [SalePaymentId] IS NULL)");
+
+                            t.HasCheckConstraint("CK_CashMovements_TypeDirection", "([MovementType] IN (1, 2, 3) AND [Amount] > 0) OR ([MovementType] = 4 AND [Amount] < 0)");
+                        });
+                });
+
+            modelBuilder.Entity("StoreControl.Domain.Cash.CashRegister", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasPrecision(3)
+                        .HasColumnType("datetime2(3)");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.Property<int>("StoreId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("UpdatedAtUtc")
+                        .HasPrecision(3)
+                        .HasColumnType("datetime2(3)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("StoreId", "Code")
+                        .IsUnique();
+
+                    b.ToTable("CashRegisters", "cash", t =>
+                        {
+                            t.HasCheckConstraint("CK_CashRegisters_Code_NotBlank", "LEN(LTRIM(RTRIM([Code]))) > 0");
+
+                            t.HasCheckConstraint("CK_CashRegisters_Name_NotBlank", "LEN(LTRIM(RTRIM([Name]))) > 0");
+                        });
+                });
+
+            modelBuilder.Entity("StoreControl.Domain.Cash.CashSession", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<int>("CashRegisterId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime?>("ClosedAtUtc")
+                        .HasPrecision(3)
+                        .HasColumnType("datetime2(3)");
+
+                    b.Property<Guid?>("ClosedByUserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<decimal?>("DeclaredClosingAmount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal?>("DifferenceAmount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("ExpectedCashAmount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<DateTime>("OpenedAtUtc")
+                        .HasPrecision(3)
+                        .HasColumnType("datetime2(3)");
+
+                    b.Property<Guid>("OpenedByUserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<decimal>("OpeningAmount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<Guid>("OperationId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("UpdatedAtUtc")
+                        .HasPrecision(3)
+                        .HasColumnType("datetime2(3)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ClosedByUserId");
+
+                    b.HasIndex("OpenedAtUtc")
+                        .IsDescending();
+
+                    b.HasIndex("OpenedByUserId");
+
+                    b.HasIndex("OperationId")
+                        .IsUnique();
+
+                    b.HasIndex("CashRegisterId", "Status")
+                        .IsUnique()
+                        .HasFilter("[Status] = 1");
+
+                    b.ToTable("CashSessions", "cash", t =>
+                        {
+                            t.HasCheckConstraint("CK_CashSessions_Amounts_NonNegative", "[OpeningAmount] >= 0 AND [ExpectedCashAmount] >= 0 AND ([DeclaredClosingAmount] IS NULL OR [DeclaredClosingAmount] >= 0)");
+
+                            t.HasCheckConstraint("CK_CashSessions_ClosingState", "([Status] = 1 AND [ClosedByUserId] IS NULL AND [ClosedAtUtc] IS NULL AND [DeclaredClosingAmount] IS NULL AND [DifferenceAmount] IS NULL) OR ([Status] = 2 AND [ClosedByUserId] IS NOT NULL AND [ClosedAtUtc] IS NOT NULL AND [DeclaredClosingAmount] IS NOT NULL AND [DifferenceAmount] IS NOT NULL)");
+
+                            t.HasCheckConstraint("CK_CashSessions_Status", "[Status] BETWEEN 1 AND 2");
+                        });
+                });
+
             modelBuilder.Entity("StoreControl.Domain.Catalog.Category", b =>
                 {
                     b.Property<int>("Id")
@@ -720,6 +936,171 @@ namespace StoreControl.Infrastructure.Persistence.Migrations
                         });
                 });
 
+            modelBuilder.Entity("StoreControl.Domain.Sales.Sale", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<long>("CashSessionId")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasPrecision(3)
+                        .HasColumnType("datetime2(3)");
+
+                    b.Property<Guid>("CreatedByUserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int?>("CustomerId")
+                        .HasColumnType("int");
+
+                    b.Property<decimal>("DiscountAmount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<DateTime>("FinalizedAtUtc")
+                        .HasPrecision(3)
+                        .HasColumnType("datetime2(3)");
+
+                    b.Property<Guid>("OperationId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("int");
+
+                    b.Property<int>("StoreId")
+                        .HasColumnType("int");
+
+                    b.Property<decimal>("Subtotal")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("TotalAmount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CashSessionId");
+
+                    b.HasIndex("CreatedByUserId");
+
+                    b.HasIndex("OperationId")
+                        .IsUnique();
+
+                    b.HasIndex("CustomerId", "FinalizedAtUtc")
+                        .IsDescending(false, true);
+
+                    b.HasIndex("StoreId", "FinalizedAtUtc")
+                        .IsDescending(false, true);
+
+                    b.ToTable("Sales", "sales", t =>
+                        {
+                            t.HasCheckConstraint("CK_Sales_Discount_Range", "[DiscountAmount] >= 0 AND [DiscountAmount] < [Subtotal]");
+
+                            t.HasCheckConstraint("CK_Sales_Status_Finalized", "[Status] = 2");
+
+                            t.HasCheckConstraint("CK_Sales_Subtotal_Positive", "[Subtotal] > 0");
+
+                            t.HasCheckConstraint("CK_Sales_Total_Equation", "[TotalAmount] = [Subtotal] - [DiscountAmount] AND [TotalAmount] > 0");
+                        });
+                });
+
+            modelBuilder.Entity("StoreControl.Domain.Sales.SaleItem", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<decimal>("LineSubtotal")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<string>("ProductCode")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
+
+                    b.Property<int>("ProductId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("ProductName")
+                        .IsRequired()
+                        .HasMaxLength(160)
+                        .HasColumnType("nvarchar(160)");
+
+                    b.Property<decimal>("Quantity")
+                        .HasPrecision(18, 3)
+                        .HasColumnType("decimal(18,3)");
+
+                    b.Property<long>("SaleId")
+                        .HasColumnType("bigint");
+
+                    b.Property<decimal>("UnitPrice")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ProductId");
+
+                    b.HasIndex("SaleId", "ProductId")
+                        .IsUnique();
+
+                    b.ToTable("SaleItems", "sales", t =>
+                        {
+                            t.HasCheckConstraint("CK_SaleItems_LineSubtotal_NonNegative", "[LineSubtotal] >= 0");
+
+                            t.HasCheckConstraint("CK_SaleItems_ProductCode_NotBlank", "LEN(LTRIM(RTRIM([ProductCode]))) > 0");
+
+                            t.HasCheckConstraint("CK_SaleItems_ProductName_NotBlank", "LEN(LTRIM(RTRIM([ProductName]))) > 0");
+
+                            t.HasCheckConstraint("CK_SaleItems_Quantity_Positive", "[Quantity] > 0");
+
+                            t.HasCheckConstraint("CK_SaleItems_UnitPrice_NonNegative", "[UnitPrice] >= 0");
+                        });
+                });
+
+            modelBuilder.Entity("StoreControl.Domain.Sales.SalePayment", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<decimal>("Amount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<int>("Method")
+                        .HasColumnType("int")
+                        .HasColumnName("PaymentMethod");
+
+                    b.Property<string>("Reference")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<long>("SaleId")
+                        .HasColumnType("bigint");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("SaleId", "Method");
+
+                    b.ToTable("SalePayments", "sales", t =>
+                        {
+                            t.HasCheckConstraint("CK_SalePayments_Amount_Positive", "[Amount] > 0");
+
+                            t.HasCheckConstraint("CK_SalePayments_Method", "[PaymentMethod] BETWEEN 1 AND 6");
+                        });
+                });
+
             modelBuilder.Entity("StoreControl.Domain.Stores.Store", b =>
                 {
                     b.Property<int>("Id")
@@ -1098,6 +1479,63 @@ namespace StoreControl.Infrastructure.Persistence.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("StoreControl.Domain.Cash.CashMovement", b =>
+                {
+                    b.HasOne("StoreControl.Domain.Cash.CashSession", "Session")
+                        .WithMany("Movements")
+                        .HasForeignKey("CashSessionId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("StoreControl.Infrastructure.Identity.ApplicationUser", null)
+                        .WithMany()
+                        .HasForeignKey("CreatedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("StoreControl.Domain.Sales.SalePayment", "SalePayment")
+                        .WithOne()
+                        .HasForeignKey("StoreControl.Domain.Cash.CashMovement", "SalePaymentId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("SalePayment");
+
+                    b.Navigation("Session");
+                });
+
+            modelBuilder.Entity("StoreControl.Domain.Cash.CashRegister", b =>
+                {
+                    b.HasOne("StoreControl.Domain.Stores.Store", "Store")
+                        .WithMany()
+                        .HasForeignKey("StoreId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Store");
+                });
+
+            modelBuilder.Entity("StoreControl.Domain.Cash.CashSession", b =>
+                {
+                    b.HasOne("StoreControl.Domain.Cash.CashRegister", "CashRegister")
+                        .WithMany()
+                        .HasForeignKey("CashRegisterId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("StoreControl.Infrastructure.Identity.ApplicationUser", null)
+                        .WithMany()
+                        .HasForeignKey("ClosedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("StoreControl.Infrastructure.Identity.ApplicationUser", null)
+                        .WithMany()
+                        .HasForeignKey("OpenedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("CashRegister");
+                });
+
             modelBuilder.Entity("StoreControl.Domain.Catalog.Product", b =>
                 {
                     b.HasOne("StoreControl.Domain.Catalog.Category", "Category")
@@ -1264,6 +1702,66 @@ namespace StoreControl.Infrastructure.Persistence.Migrations
                     b.Navigation("PurchaseOrder");
                 });
 
+            modelBuilder.Entity("StoreControl.Domain.Sales.Sale", b =>
+                {
+                    b.HasOne("StoreControl.Domain.Cash.CashSession", null)
+                        .WithMany()
+                        .HasForeignKey("CashSessionId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("StoreControl.Infrastructure.Identity.ApplicationUser", null)
+                        .WithMany()
+                        .HasForeignKey("CreatedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("StoreControl.Domain.Parties.Customer", "Customer")
+                        .WithMany()
+                        .HasForeignKey("CustomerId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("StoreControl.Domain.Stores.Store", "Store")
+                        .WithMany()
+                        .HasForeignKey("StoreId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Customer");
+
+                    b.Navigation("Store");
+                });
+
+            modelBuilder.Entity("StoreControl.Domain.Sales.SaleItem", b =>
+                {
+                    b.HasOne("StoreControl.Domain.Catalog.Product", "Product")
+                        .WithMany()
+                        .HasForeignKey("ProductId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("StoreControl.Domain.Sales.Sale", "Sale")
+                        .WithMany("Items")
+                        .HasForeignKey("SaleId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Product");
+
+                    b.Navigation("Sale");
+                });
+
+            modelBuilder.Entity("StoreControl.Domain.Sales.SalePayment", b =>
+                {
+                    b.HasOne("StoreControl.Domain.Sales.Sale", "Sale")
+                        .WithMany("Payments")
+                        .HasForeignKey("SaleId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Sale");
+                });
+
             modelBuilder.Entity("StoreControl.Infrastructure.Identity.RefreshToken", b =>
                 {
                     b.HasOne("StoreControl.Infrastructure.Identity.RefreshToken", "ReplacedByToken")
@@ -1328,6 +1826,11 @@ namespace StoreControl.Infrastructure.Persistence.Migrations
                     b.Navigation("User");
                 });
 
+            modelBuilder.Entity("StoreControl.Domain.Cash.CashSession", b =>
+                {
+                    b.Navigation("Movements");
+                });
+
             modelBuilder.Entity("StoreControl.Domain.Purchasing.PurchaseOrder", b =>
                 {
                     b.Navigation("Items");
@@ -1340,6 +1843,13 @@ namespace StoreControl.Infrastructure.Persistence.Migrations
             modelBuilder.Entity("StoreControl.Domain.Purchasing.PurchaseReceipt", b =>
                 {
                     b.Navigation("Items");
+                });
+
+            modelBuilder.Entity("StoreControl.Domain.Sales.Sale", b =>
+                {
+                    b.Navigation("Items");
+
+                    b.Navigation("Payments");
                 });
 #pragma warning restore 612, 618
         }

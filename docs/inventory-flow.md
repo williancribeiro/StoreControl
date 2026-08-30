@@ -70,7 +70,11 @@ Frontend permission guards control navigation and actions. JWT policies and stor
 
 With demonstration data enabled, DbMigrator creates one initial balance and one `InitialBalance` movement for every active seeded product/store pair. Values are deterministic, include low-stock examples and are idempotent.
 
-Purchasing now calls the same aggregate behavior inside its receipt transaction and records a `PurchaseReceipt` business reference. Sales and transfers must follow that boundary in their later phases: provide a business reference, use the corresponding movement type, and never update `QuantityOnHand` separately or call the manual adjustment HTTP endpoint internally.
+## Sale integration
+
+Finalizing a sale calls the same `StockBalance.ApplyMovement` aggregate with `StockMovementType.Sale`. It writes one negative movement per product using `ReferenceType=Sale` and the sale operation UUID. Sale, payments, every balance update, every stock movement and every cash movement share one SQL transaction. Insufficient quantity or a concurrency conflict rolls all of them back. A sale cannot write quantity directly or omit its movement.
+
+Purchasing and sales call the same aggregate behavior inside their own transactions and record `PurchaseReceipt` or `Sale` business references. Transfers must follow that boundary in their later phase: provide a business reference, use paired movement types, and never update `QuantityOnHand` separately or call the manual adjustment HTTP endpoint internally.
 
 ## Debugging path
 

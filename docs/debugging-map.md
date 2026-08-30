@@ -98,6 +98,35 @@ Creating a purchase should stop at the purchasing tables. If stock changed at cr
 
 Public `/health` routes intentionally return only aggregate status. Sign in and use `/system/smoke` when foundation version and SQL Server time are needed for diagnosis.
 
+## Sale finalization
+
+    Browser NewSalePage cart/payments
+    → salesService Axios + Idempotency-Key
+    → sales.manage policy
+    → SalesController
+    → SaleService store/session/product validation
+    → Sale + StockBalance + CashSession Domain rules
+    → SQL transaction
+    → sales.Sales/SaleItems/SalePayments
+    → inventory.StockBalances/StockMovements
+    → cash.CashSessions/CashMovements
+
+For a 400, inspect cash-session/store matching, active customer/products, discount and exact payment sum. For a 403, inspect both `sales.manage` and `security.UserStoreRoles`. For a 409, distinguish insufficient stock, rowversion contention and idempotency-payload mismatch using Problem Details plus correlation ID.
+
+To trace a committed sale, start with `sales.Sales.OperationId`. It must match one stock movement reference per distinct product and one cash movement per payment. Reconcile historical item subtotals to the sale subtotal, payment sum to total, and only Cash payment movements to the change in physical `ExpectedCashAmount`. A failed sale must leave no sale row and no new movement under that operation UUID.
+
+## Cash operation
+
+    Browser CashOperationPage
+    → cashService Axios + rowVersion / Idempotency-Key
+    → cash.read or cash.manage policy
+    → CashController
+    → CashService locked session
+    → CashSession Domain rules
+    → cash.CashSessions + append-only CashMovements
+
+For duplicate opening, inspect the filtered open-session index and `CashSessions.OperationId`. For stale entry/exit/close, compare the Base64 rowVersion with the SQL rowversion. Reconcile expected physical cash as Opening + CashIn - CashOut + cash-form SalePayment. Card/Pix/Voucher payments belong in the audit ledger but do not increase physical cash. A close and sale on the same session are serialized on the cash-session row.
+
 ## Future asynchronous path
 
     API transaction

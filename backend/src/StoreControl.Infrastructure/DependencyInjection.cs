@@ -4,16 +4,20 @@ using Microsoft.Extensions.DependencyInjection;
 using StoreControl.Application.Administration;
 using StoreControl.Application.Abstractions.Persistence;
 using StoreControl.Application.Catalog;
+using StoreControl.Application.Cash;
 using StoreControl.Application.Inventory;
 using StoreControl.Application.Purchasing;
+using StoreControl.Application.Sales;
 using StoreControl.Application.Parties;
 using StoreControl.Application.Security;
 using StoreControl.Infrastructure.Administration;
 using StoreControl.Infrastructure.Catalog;
+using StoreControl.Infrastructure.Cash;
 using StoreControl.Infrastructure.HealthChecks;
 using StoreControl.Infrastructure.Identity;
 using StoreControl.Infrastructure.Inventory;
 using StoreControl.Infrastructure.Purchasing;
+using StoreControl.Infrastructure.Sales;
 using StoreControl.Infrastructure.Parties;
 using StoreControl.Infrastructure.Persistence;
 using StoreControl.Infrastructure.Persistence.Seeding;
@@ -70,6 +74,7 @@ public static class DependencyInjection
         services.AddScoped<MasterDataSeeder>();
         services.AddScoped<InventorySeeder>();
         services.AddScoped<PurchaseSeeder>();
+        services.AddScoped<CashRegisterSeeder>();
         services.AddScoped<IAuthenticationService, AuthenticationService>();
         services.AddScoped<ITokenSessionValidator, TokenSessionValidator>();
         services.AddScoped<IStoreAdministrationService, StoreAdministrationService>();
@@ -81,6 +86,8 @@ public static class DependencyInjection
         services.AddScoped<ISupplierService, SupplierService>();
         services.AddScoped<IInventoryService, InventoryService>();
         services.AddScoped<IPurchaseService, PurchaseService>();
+        services.AddScoped<ICashService, CashService>();
+        services.AddScoped<ISaleService, SaleService>();
         services.AddHealthChecks()
             .AddCheck<SqlServerHealthCheck>("sqlserver", tags: ["ready"]);
 

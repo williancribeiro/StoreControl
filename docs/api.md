@@ -76,3 +76,23 @@ Creation returns 201 and never changes stock. A new receipt returns 201 after it
 - /swagger and /swagger/v1/swagger.json in Development.
 
 Swagger defines bearer authentication. Access tokens are returned in the login/refresh response; refresh tokens are cookie-only.
+
+## Sales
+
+- GET /api/sales: `sales.read`; pagination, search, store/customer/payment/date filters and sorting;
+- GET /api/sales/{saleId}: `sales.read`; complete historical item/payment representation;
+- POST /api/sales: `sales.manage`; required UUID `Idempotency-Key`, store, open cash session, optional customer, discount, 1–100 item quantities and 1–10 payments.
+
+The server sources current product prices and calculates every financial value. A new atomic finalization returns 201; exact idempotent replay returns 200 with `wasAlreadyProcessed=true`. Insufficient stock, altered idempotency payload and concurrency conflicts return 409. Invalid products, customer, totals, payment sums or cash session return validation Problem Details. Store scope is enforced on every read and write.
+
+## Cash
+
+- GET /api/cash/registers: `cash.read`, optional storeId;
+- GET /api/cash/sessions/current: `cash.read`, required cashRegisterId, returns 204 when closed/not open;
+- GET /api/cash/sessions: `cash.read`; pagination, store/register/status/date filters and sorting;
+- GET /api/cash/sessions/{cashSessionId}: `cash.read`, complete movement ledger;
+- POST /api/cash/sessions: `cash.manage`; opening amount and required UUID `Idempotency-Key`;
+- POST /api/cash/sessions/{cashSessionId}/movements: `cash.manage`; CashIn/CashOut, amount, reason, rowVersion and required UUID `Idempotency-Key`;
+- POST /api/cash/sessions/{cashSessionId}/close: `cash.manage`; declared physical cash and rowVersion.
+
+Open/manual idempotent replay returns a durable operation result. Duplicate open, stale rowversion, closed-session writes and cash-out beyond expected physical cash return 409.

@@ -12,6 +12,8 @@ StoreControl.UnitTests currently verifies:
 - Customer/supplier document, e-mail and active-state rules.
 - StockBalance quantity precision, movement direction, before/after arithmetic, insufficient-stock rejection and low-stock calculation.
 - PurchaseOrder money/quantity rounding, snapshots, lifecycle, partial/full receipts, duplicate receipt rejection and cancellation rules.
+- Sale historical-price capture, multiple-item/payment calculation, discount/payment invariants and duplicate-item rejection.
+- CashSession physical-cash calculation, signed manual movements, close difference and closed-session rejection.
 
 ## Integration tests
 
@@ -44,6 +46,12 @@ Coverage currently includes:
 - invalid-status rejection and allowed pre-receipt cancellation;
 - API purchase permissions and store scope;
 - forced SQL unique-key failure proving atomic rollback of purchase status/items, receipts and every stock change.
+- finalized sale with multiple products and payments, historical values, stock exits, cash effects and exact idempotent replay;
+- insufficient-stock rollback with no sale, stock or cash side effect;
+- two concurrent sales of the last item with exactly one successful commit;
+- forced SQL failure proving rollback across sale, multiple stock changes and cash movements;
+- opening/manual entry/manual exit/closing cash lifecycle and difference calculation;
+- sales/cash permission policies and store-scoped register visibility.
 
 Set STORECONTROL_TEST_DB_CONNECTION to a SQL Server connection with create/drop database permission. The connection's database name is replaced with a safe unique test name. `scripts/Set-LocalEnvironment.ps1` prepares this value from the ignored local `.env`. GitHub Actions starts SQL Server with a newly generated masked password for each run rather than storing a working credential in the workflow.
 
@@ -57,4 +65,4 @@ Current automated frontend gates are:
 - Oxlint with zero warnings;
 - Vite production build.
 
-An automated browser suite is still deferred. Manual browser validation in the main-registration phase covered category/product/customer/supplier creation, linked product edit, inactivation/reactivation, search, combined filter and pagination through the running Vite/API/SQL Server path. Direct SQL queries confirmed the persisted normalized rows.
+An automated browser suite is still deferred. Manual browser validation in the main-registration phase covered category/product/customer/supplier creation, linked product edit, inactivation/reactivation, search, combined filter and pagination through the running Vite/API/SQL Server path. The sales phase additionally validates the PDV and cash screens against an isolated local API/SQL database when the host browser runtime is available. Direct SQL and integration assertions remain the authoritative persistence/transaction checks.

@@ -2,9 +2,11 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 using StoreControl.Domain.Catalog;
+using StoreControl.Domain.Cash;
 using StoreControl.Domain.Inventory;
 using StoreControl.Domain.Parties;
 using StoreControl.Domain.Purchasing;
+using StoreControl.Domain.Sales;
 using StoreControl.Domain.Stores;
 using StoreControl.Infrastructure.Identity;
 using StoreControl.Infrastructure.Persistence.Models;
@@ -39,6 +41,18 @@ public sealed class StoreControlDbContext(DbContextOptions<StoreControlDbContext
     public DbSet<PurchaseReceiptItem> PurchaseReceiptItems => Set<PurchaseReceiptItem>();
 
     public DbSet<PurchaseStatusHistory> PurchaseStatusHistory => Set<PurchaseStatusHistory>();
+
+    public DbSet<CashRegister> CashRegisters => Set<CashRegister>();
+
+    public DbSet<CashSession> CashSessions => Set<CashSession>();
+
+    public DbSet<CashMovement> CashMovements => Set<CashMovement>();
+
+    public DbSet<Sale> Sales => Set<Sale>();
+
+    public DbSet<SaleItem> SaleItems => Set<SaleItem>();
+
+    public DbSet<SalePayment> SalePayments => Set<SalePayment>();
 
     public DbSet<Permission> Permissions => Set<Permission>();
 

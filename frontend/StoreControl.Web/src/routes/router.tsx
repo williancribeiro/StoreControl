@@ -18,6 +18,12 @@ import { StockPositionsPage } from '../features/inventory/StockPositionsPage'
 import { NewPurchasePage } from '../features/purchasing/NewPurchasePage'
 import { PurchaseDetailsPage } from '../features/purchasing/PurchaseDetailsPage'
 import { PurchasesPage } from '../features/purchasing/PurchasesPage'
+import { CashHistoryPage } from '../features/cash/CashHistoryPage'
+import { CashOperationPage } from '../features/cash/CashOperationPage'
+import { CashSessionDetailsPage } from '../features/cash/CashSessionDetailsPage'
+import { NewSalePage } from '../features/sales/NewSalePage'
+import { SaleDetailsPage } from '../features/sales/SaleDetailsPage'
+import { SalesPage } from '../features/sales/SalesPage'
 import { AppLayout } from '../shared/layout/AppLayout'
 import { SmokePage } from '../features/system/SmokePage'
 
@@ -74,6 +80,28 @@ export const router = createBrowserRouter([
           {
             element: <PermissionRoute permission={permissions.purchasesManage} />,
             children: [{ path: 'purchases/new', element: <NewPurchasePage /> }],
+          },
+          {
+            element: <PermissionRoute permission={permissions.salesRead} />,
+            children: [
+              { path: 'sales', element: <SalesPage /> },
+              { path: 'sales/:saleId', element: <SaleDetailsPage /> },
+            ],
+          },
+          {
+            element: <PermissionRoute permission={permissions.salesManage} />,
+            children: [{ path: 'sales/new', element: <NewSalePage /> }],
+          },
+          {
+            element: <PermissionRoute permission={permissions.cashRead} />,
+            children: [
+              { path: 'cash/history', element: <CashHistoryPage /> },
+              { path: 'cash/sessions/:cashSessionId', element: <CashSessionDetailsPage /> },
+            ],
+          },
+          {
+            element: <PermissionRoute permission={permissions.cashManage} />,
+            children: [{ path: 'cash/current', element: <CashOperationPage /> }],
           },
           {
             element: <PermissionRoute permission={permissions.usersRead} />,

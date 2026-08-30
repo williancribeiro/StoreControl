@@ -31,6 +31,14 @@ StoreControl.Web is a separate React, TypeScript and Vite application. React Rou
     │   │   ├── PurchasesPage
     │   │   ├── PurchaseDetailsPage
     │   │   └── purchase service/types
+    │   ├── sales/
+    │   │   ├── NewSalePage
+    │   │   ├── SalesPage / SaleDetailsPage
+    │   │   └── sales service/types
+    │   ├── cash/
+    │   │   ├── CashOperationPage
+    │   │   ├── CashHistoryPage / CashSessionDetailsPage
+    │   │   └── cash service/types
     │   └── system/SmokePage
     ├── routes/
     └── shared/
@@ -63,6 +71,12 @@ No browser storage contains tokens. Full page reloads therefore require refresh,
 - /purchases/new;
 - /purchases;
 - /purchases/:purchaseId;
+- /sales/new;
+- /sales;
+- /sales/:saleId;
+- /cash/current;
+- /cash/history;
+- /cash/sessions/:cashSessionId;
 - /system/smoke;
 - /access-denied.
 
@@ -86,5 +100,10 @@ ProtectedRoute handles authentication and PermissionRoute handles feature visibi
 - paginated purchase history with store/status/search/sort filters;
 - purchase details with status history, receipt history, lifecycle actions and partial/full receipt;
 - receipt retry reuses its client UUID until confirmed so an uncertain HTTP result does not duplicate stock.
+- PDV-style new sale with store/register context, open-session feedback, product search, editable cart quantities, optional customer, discount, split payment methods, total reconciliation and transactional error feedback;
+- sale history/detail with historical item prices and payment split;
+- current cash operation with opening, live signed ledger, manual entry/exit and physical close;
+- cash session history/detail with expected/declared amount and difference;
+- sale finalization retains one UUID across uncertain retries, while the server remains authoritative for price, stock, money and authorization.
 
 Vite proxies /api and /health to localhost:5090. Docker Nginx proxies the same paths to the API container, so cookies remain same-origin.
