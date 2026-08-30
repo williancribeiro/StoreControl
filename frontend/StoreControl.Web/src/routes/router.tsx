@@ -15,6 +15,9 @@ import { SuppliersPage } from '../features/registrations/SuppliersPage'
 import { StockAdjustmentsPage } from '../features/inventory/StockAdjustmentsPage'
 import { StockMovementsPage } from '../features/inventory/StockMovementsPage'
 import { StockPositionsPage } from '../features/inventory/StockPositionsPage'
+import { NewPurchasePage } from '../features/purchasing/NewPurchasePage'
+import { PurchaseDetailsPage } from '../features/purchasing/PurchaseDetailsPage'
+import { PurchasesPage } from '../features/purchasing/PurchasesPage'
 import { AppLayout } from '../shared/layout/AppLayout'
 import { SmokePage } from '../features/system/SmokePage'
 
@@ -60,6 +63,17 @@ export const router = createBrowserRouter([
           {
             element: <PermissionRoute permission={permissions.inventoryManage} />,
             children: [{ path: 'inventory/adjustments', element: <StockAdjustmentsPage /> }],
+          },
+          {
+            element: <PermissionRoute permission={permissions.purchasesRead} />,
+            children: [
+              { path: 'purchases', element: <PurchasesPage /> },
+              { path: 'purchases/:purchaseId', element: <PurchaseDetailsPage /> },
+            ],
+          },
+          {
+            element: <PermissionRoute permission={permissions.purchasesManage} />,
+            children: [{ path: 'purchases/new', element: <NewPurchasePage /> }],
           },
           {
             element: <PermissionRoute permission={permissions.usersRead} />,

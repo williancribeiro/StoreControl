@@ -79,6 +79,19 @@ For a 400, inspect the ValidationProblemDetails fields and domain normalization 
 
 For an unexpected quantity, filter movements by both StoreId and ProductId and compare their signed sum with QuantityOnHand. For a 409, reload the position and compare rowversion before retrying. For a 403, inspect both the permission claim and security.UserStoreRoles. A failed adjustment should change neither table; use the request correlation ID to find its structured API log.
 
+## Purchase and receipt
+
+    Browser PurchaseDetailsPage
+    → purchaseService Axios request + Idempotency-Key
+    → purchases.manage policy
+    → PurchasesController
+    → PurchaseService store-scope/status/rowversion checks
+    → PurchaseOrder + StockBalance Domain rules
+    → EF Core ReadCommitted transaction
+    → purchasing tables + inventory.StockBalances/StockMovements
+
+Creating a purchase should stop at the purchasing tables. If stock changed at creation, trace the movement reference because no legitimate creation path emits one. For receipt problems, correlate `PurchaseReceipts.Id` with `StockMovements.ReferenceId`; each received product should have exactly one positive movement in the order's store. A 409 can mean stale rowversion, invalid lifecycle/quantity or a persistence conflict. A replayed UUID should return 200 and `wasAlreadyProcessed=true` without another movement. A failed transaction should leave no receipt, no item received quantity and no new balance/movement.
+
 ## Foundation smoke
 
     Authenticated browser → SmokePage → Axios → GET /api/smoke → EF Core → platform.FoundationRecords

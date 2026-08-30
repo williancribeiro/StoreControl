@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using StoreControl.Domain.Catalog;
 using StoreControl.Domain.Inventory;
 using StoreControl.Domain.Parties;
+using StoreControl.Domain.Purchasing;
 using StoreControl.Domain.Stores;
 using StoreControl.Infrastructure.Identity;
 using StoreControl.Infrastructure.Persistence.Models;
@@ -28,6 +29,16 @@ public sealed class StoreControlDbContext(DbContextOptions<StoreControlDbContext
     public DbSet<StockBalance> StockBalances => Set<StockBalance>();
 
     public DbSet<StockMovement> StockMovements => Set<StockMovement>();
+
+    public DbSet<PurchaseOrder> PurchaseOrders => Set<PurchaseOrder>();
+
+    public DbSet<PurchaseOrderItem> PurchaseOrderItems => Set<PurchaseOrderItem>();
+
+    public DbSet<PurchaseReceipt> PurchaseReceipts => Set<PurchaseReceipt>();
+
+    public DbSet<PurchaseReceiptItem> PurchaseReceiptItems => Set<PurchaseReceiptItem>();
+
+    public DbSet<PurchaseStatusHistory> PurchaseStatusHistory => Set<PurchaseStatusHistory>();
 
     public DbSet<Permission> Permissions => Set<Permission>();
 

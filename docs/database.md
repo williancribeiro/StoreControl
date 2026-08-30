@@ -26,6 +26,14 @@ inventory:
 - StockBalances: composite product/store key, decimal(18,3) current and minimum quantities, timestamps and rowversion;
 - StockMovements: signed decimal(18,3) change, before/after balances, movement type, reason, responsible user, UTC occurrence, correlation and optional business reference.
 
+purchasing:
+
+- PurchaseOrders: store/supplier/creator FKs, lifecycle status, dates, notes, total and rowversion;
+- PurchaseOrderItems: immutable product code/name snapshot, ordered/received decimal(18,3) quantities, decimal(18,4) unit cost and decimal(18,2) line total;
+- PurchaseReceipts: client-generated UUID primary key, order/actor, timestamp and notes;
+- PurchaseReceiptItems: receipt lines linked to the exact order item and product;
+- PurchaseStatusHistory: append-only status, actor, timestamp and description.
+
 security:
 
 - Users, Roles, UserRoles, UserClaims, RoleClaims, UserLogins and UserTokens from ASP.NET Core Identity;
@@ -41,21 +49,22 @@ Normalized e-mail and normalized username are protected by filtered unique index
 - 20260827133444_AuthenticationAndStores: creates security and organization schemas, Identity tables, permissions, stores, store-scoped roles, refresh sessions, indexes, FKs and rowversion columns.
 - 20260827210014_MainRegistrations: creates catalog and parties schemas, the four master-data tables, price checks, foreign keys, filtered unique indexes, query indexes and rowversion columns.
 - 20260828140319_Inventory: creates inventory.StockBalances and StockMovements with composite relationship, rowversion, ledger constraints, restrictive foreign keys and history/query indexes.
+- 20260830144940_PurchasesAndReceiving: creates the purchasing schema, purchase aggregate/receipt/history tables, constraints, rowversion and receipt-reference uniqueness in the inventory ledger.
 
 All migrations were validated from an empty database and in a generated idempotent SQL script.
 
 ## Seeds
 
-DbMigrator seeds system roles, permission definitions, default mappings and CENTRAL, NORTE and SUL idempotently. With the explicit demo switch it also ensures demo users plus 8 categories, 120 products, 30 customers, 12 suppliers and a coherent initial position/movement for every active product/store pair. Re-running does not duplicate data, reset passwords, overwrite existing master records or repeat initial movements.
+DbMigrator seeds system roles, permission definitions, default mappings and CENTRAL, NORTE and SUL idempotently. With the explicit demo switch it also ensures demo users plus 8 categories, 120 products, 30 customers, 12 suppliers, a coherent initial position/movement for every active product/store pair and 8 purchase orders (2 created, 6 pending). Re-running does not duplicate data, reset passwords, overwrite existing master records, repeat initial movements or recreate purchase orders.
 
 ## Concurrency and constraints
 
-Store, main-registration and stock-balance updates supply Base64 rowversion; stale updates return HTTP 409. Stock adjustments use an explicit ReadCommitted transaction inside the SQL retry execution strategy so the balance update and ledger insert commit together. Refresh rotation also uses rowversion so two requests cannot successfully rotate the same token.
+Store, main-registration, purchase and stock-balance updates supply Base64 rowversion; stale updates return HTTP 409. Stock adjustments use an explicit ReadCommitted transaction inside the SQL retry execution strategy so the balance update and ledger insert commit together. Purchase receipt uses the same transaction strategy, locks the purchase root to serialize concurrent receipts, and commits the receipt, purchase status, every balance and movement together. Refresh rotation also uses rowversion so two requests cannot successfully rotate the same token.
 
-Application validation improves error messages, but SQL unique indexes, foreign keys and inventory check constraints remain the final integrity boundary. Inventory constraints reject negative balances, zero changes, invalid movement direction and inconsistent before/change/after arithmetic.
+Application validation improves error messages, but SQL unique indexes, foreign keys and check constraints remain the final integrity boundary. Inventory constraints reject negative balances, zero changes, invalid movement direction and inconsistent before/change/after arithmetic. Purchasing constraints protect status ranges, quantity bounds, received-at-most-ordered, line totals and required snapshots. Receipt UUID plus a filtered unique inventory reference index prevent a committed receipt movement from being applied twice.
 
 ## Configuration
 
 The connection key is ConnectionStrings:StoreControl. It must come from environment variables, local secrets or Compose. EF design-time commands also accept STORECONTROL_DB_CONNECTION.
 
-Future purchasing, sales, cash, reporting and integration schemas will be introduced only with their modules. Views and stored procedures remain deferred until a query has a concrete benefit; current inventory position/history queries remain understandable indexed EF Core SQL.
+Future sales, cash, reporting and integration schemas will be introduced only with their modules. Views and stored procedures remain deferred until a query has a concrete benefit; current inventory and purchase queries remain understandable indexed EF Core SQL. Purchase receiving deliberately uses parameterized SQL for the SQL Server `UPDLOCK` root query because EF LINQ has no equivalent lock hint.

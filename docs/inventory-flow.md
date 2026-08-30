@@ -70,7 +70,7 @@ Frontend permission guards control navigation and actions. JWT policies and stor
 
 With demonstration data enabled, DbMigrator creates one initial balance and one `InitialBalance` movement for every active seeded product/store pair. Values are deterministic, include low-stock examples and are idempotent.
 
-Purchasing, sales and transfers must call the same aggregate behavior within their own transactions. They must provide a business reference and use the corresponding movement type; they must not update `QuantityOnHand` separately or call the manual adjustment HTTP endpoint internally.
+Purchasing now calls the same aggregate behavior inside its receipt transaction and records a `PurchaseReceipt` business reference. Sales and transfers must follow that boundary in their later phases: provide a business reference, use the corresponding movement type, and never update `QuantityOnHand` separately or call the manual adjustment HTTP endpoint internally.
 
 ## Debugging path
 

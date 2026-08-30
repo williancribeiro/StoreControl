@@ -1,6 +1,6 @@
 # Authentication
 
-Status: implemented for identity, administration, registrations and store-scoped inventory.
+Status: implemented for identity, administration, registrations, store-scoped inventory and purchasing.
 
 ## Model
 
@@ -22,7 +22,8 @@ Permissions are stable codes stored in security.Permissions and linked through s
 - products.read and products.manage;
 - customers.read and customers.manage;
 - suppliers.read and suppliers.manage;
-- inventory.read and inventory.manage.
+- inventory.read and inventory.manage;
+- purchases.read and purchases.manage.
 
 The API registers one authorization policy per code. Controllers enforce policies; React uses the same codes only to shape navigation and controls.
 
@@ -68,7 +69,7 @@ Concurrent reuse is rejected. Reuse of an already rotated token is treated as re
 
 Administrator is global and can list all stores. Other users receive only active stores explicitly assigned through UserStoreRoles. Current administration writes require manage permissions; only Administrator receives those permissions in the initial seed.
 
-Current master data is company-wide and uses resource read/manage policies. Gerente initially manages all four registrations; Vendedor reads catalog and manages customers; Estoquista reads catalog/suppliers and manages products. Inventory is store-bound: Gerente and Estoquista receive read/manage, Vendedor receives read, and every backend inventory query/write validates the requested store against the authenticated assignment. A hidden frontend menu or a client-supplied store ID is never treated as authorization.
+Current master data is company-wide and uses resource read/manage policies. Gerente initially manages all four registrations; Vendedor reads catalog and manages customers; Estoquista reads catalog/suppliers and manages products. Inventory is store-bound: Gerente and Estoquista receive read/manage, Vendedor receives read. Purchasing is also store-bound: Gerente and Estoquista receive read/manage, while Vendedor receives neither. Every backend inventory/purchase query and write validates the requested store against the authenticated assignment. A hidden frontend menu or a client-supplied store ID is never treated as authorization.
 
 ## Frontend lifecycle
 
@@ -78,7 +79,7 @@ ProtectedRoute requires authentication. PermissionRoute controls user experience
 
 ## Demonstration seed
 
-The DbMigrator always seeds roles, permissions and three reference stores idempotently. Demonstration users are added only when Seed__DemoDataEnabled=true and both password variables are present. Versioned seeds add registration and inventory grants once to existing Gerente, Vendedor and Estoquista roles, while later runs preserve customized mappings. Affected existing sessions are invalidated through security-stamp rotation.
+The DbMigrator always seeds roles, permissions and three reference stores idempotently. Demonstration users are added only when Seed__DemoDataEnabled=true and both password variables are present. Versioned seeds add registration, inventory and purchase grants once to the relevant existing roles, while later runs preserve customized mappings. Affected existing sessions are invalidated through security-stamp rotation.
 
 No working demonstration password is versioned. `scripts/Initialize-LocalEnvironment.ps1 -EnableDemoData` creates random local passwords in the ignored `.env`; README.md lists only the fixed `.local` identities required to select a profile. The example environment file keeps secret fields empty, and Compose refuses to start without required generated values.
 

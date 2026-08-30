@@ -56,6 +56,18 @@ POST returns 201 with the created representation. PUT returns the updated repres
 
 Successful adjustment creation returns 201 with both updated position and movement. Insufficient stock, stale rowversion and concurrent aggregate creation return 409. Store scope is always enforced on the server.
 
+## Purchases
+
+- GET /api/purchases: `purchases.read`; page/pageSize, search, storeId, supplierId, status, fromUtc, toUtc and sorting;
+- GET /api/purchases/{purchaseOrderId}: `purchases.read`; full items, receipts and status history;
+- POST /api/purchases: `purchases.manage`; store, supplier, optional expected date/notes and 1–100 distinct product lines;
+- POST /api/purchases/{purchaseOrderId}/submit: `purchases.manage`; current rowVersion;
+- POST /api/purchases/{purchaseOrderId}/receipts: `purchases.manage`; current rowVersion, receipt lines, optional notes and required UUID `Idempotency-Key` header;
+- POST /api/purchases/{purchaseOrderId}/finalize: `purchases.manage`; current rowVersion;
+- POST /api/purchases/{purchaseOrderId}/cancel: `purchases.manage`; current rowVersion and required reason.
+
+Creation returns 201 and never changes stock. A new receipt returns 201 after its purchase/stock transaction commits; replaying the same idempotency key returns 200 with `wasAlreadyProcessed=true`. Invalid lifecycle changes, stale writes, excessive receipt quantities and persistence conflicts return 409. Every list, detail and write is restricted to stores accessible to the authenticated user.
+
 ## Foundation
 
 - GET /api/smoke: authenticated real API-to-SQL query with diagnostic metadata;

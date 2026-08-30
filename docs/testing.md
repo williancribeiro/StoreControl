@@ -11,6 +11,7 @@ StoreControl.UnitTests currently verifies:
 - Product barcode/money validation and deterministic decimal rounding;
 - Customer/supplier document, e-mail and active-state rules.
 - StockBalance quantity precision, movement direction, before/after arithmetic, insufficient-stock rejection and low-stock calculation.
+- PurchaseOrder money/quantity rounding, snapshots, lifecycle, partial/full receipts, duplicate receipt rejection and cancellation rules.
 
 ## Integration tests
 
@@ -38,6 +39,11 @@ Coverage currently includes:
 - two concurrent stock exits sharing one rowversion, proving exactly one writer/movement succeeds;
 - virtual zero positions for a newly created product and tracked creation on its first adjustment;
 - SQL constraint rejection of a direct negative balance.
+- purchase creation without stock effects;
+- receipt stock entry plus idempotent replay without duplicated receipt or movement;
+- invalid-status rejection and allowed pre-receipt cancellation;
+- API purchase permissions and store scope;
+- forced SQL unique-key failure proving atomic rollback of purchase status/items, receipts and every stock change.
 
 Set STORECONTROL_TEST_DB_CONNECTION to a SQL Server connection with create/drop database permission. The connection's database name is replaced with a safe unique test name. `scripts/Set-LocalEnvironment.ps1` prepares this value from the ignored local `.env`. GitHub Actions starts SQL Server with a newly generated masked password for each run rather than storing a working credential in the workflow.
 

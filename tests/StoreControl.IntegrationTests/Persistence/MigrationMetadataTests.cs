@@ -20,5 +20,6 @@ public sealed class MigrationMetadataTests
         Assert.Contains(migrations, migration => migration.EndsWith("_AuthenticationAndStores", StringComparison.Ordinal));
         Assert.Contains(migrations, migration => migration.EndsWith("_MainRegistrations", StringComparison.Ordinal));
         Assert.Contains(migrations, migration => migration.EndsWith("_Inventory", StringComparison.Ordinal));
+        Assert.Contains(migrations, migration => migration.EndsWith("_PurchasesAndReceiving", StringComparison.Ordinal));
     }
 }

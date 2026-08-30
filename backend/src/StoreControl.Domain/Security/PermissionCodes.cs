@@ -18,6 +18,8 @@ public static class PermissionCodes
     public const string SuppliersManage = "suppliers.manage";
     public const string InventoryRead = "inventory.read";
     public const string InventoryManage = "inventory.manage";
+    public const string PurchasesRead = "purchases.read";
+    public const string PurchasesManage = "purchases.manage";
 
     public static readonly IReadOnlyCollection<string> All =
     [
@@ -36,6 +38,8 @@ public static class PermissionCodes
         SuppliersRead,
         SuppliersManage,
         InventoryRead,
-        InventoryManage
+        InventoryManage,
+        PurchasesRead,
+        PurchasesManage
     ];
 }

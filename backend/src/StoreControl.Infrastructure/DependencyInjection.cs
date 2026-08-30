@@ -5,6 +5,7 @@ using StoreControl.Application.Administration;
 using StoreControl.Application.Abstractions.Persistence;
 using StoreControl.Application.Catalog;
 using StoreControl.Application.Inventory;
+using StoreControl.Application.Purchasing;
 using StoreControl.Application.Parties;
 using StoreControl.Application.Security;
 using StoreControl.Infrastructure.Administration;
@@ -12,6 +13,7 @@ using StoreControl.Infrastructure.Catalog;
 using StoreControl.Infrastructure.HealthChecks;
 using StoreControl.Infrastructure.Identity;
 using StoreControl.Infrastructure.Inventory;
+using StoreControl.Infrastructure.Purchasing;
 using StoreControl.Infrastructure.Parties;
 using StoreControl.Infrastructure.Persistence;
 using StoreControl.Infrastructure.Persistence.Seeding;
@@ -67,6 +69,7 @@ public static class DependencyInjection
         services.AddScoped<IDatabaseSeeder, DatabaseSeeder>();
         services.AddScoped<MasterDataSeeder>();
         services.AddScoped<InventorySeeder>();
+        services.AddScoped<PurchaseSeeder>();
         services.AddScoped<IAuthenticationService, AuthenticationService>();
         services.AddScoped<ITokenSessionValidator, TokenSessionValidator>();
         services.AddScoped<IStoreAdministrationService, StoreAdministrationService>();
@@ -77,6 +80,7 @@ public static class DependencyInjection
         services.AddScoped<ICustomerService, CustomerService>();
         services.AddScoped<ISupplierService, SupplierService>();
         services.AddScoped<IInventoryService, InventoryService>();
+        services.AddScoped<IPurchaseService, PurchaseService>();
         services.AddHealthChecks()
             .AddCheck<SqlServerHealthCheck>("sqlserver", tags: ["ready"]);
 

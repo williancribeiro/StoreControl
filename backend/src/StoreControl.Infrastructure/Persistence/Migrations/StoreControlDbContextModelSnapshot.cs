@@ -362,7 +362,9 @@ namespace StoreControl.Infrastructure.Persistence.Migrations
                     b.HasIndex("StoreId", "OccurredAtUtc")
                         .IsDescending(false, true);
 
-                    b.HasIndex("StoreId", "ProductId");
+                    b.HasIndex("StoreId", "ProductId", "ReferenceType", "ReferenceId")
+                        .IsUnique()
+                        .HasFilter("[ReferenceType] IS NOT NULL AND [ReferenceId] IS NOT NULL");
 
                     b.ToTable("StockMovements", "inventory", t =>
                         {
@@ -498,6 +500,224 @@ namespace StoreControl.Infrastructure.Persistence.Migrations
                     b.HasIndex("IsActive", "Name");
 
                     b.ToTable("Suppliers", "parties");
+                });
+
+            modelBuilder.Entity("StoreControl.Domain.Purchasing.PurchaseOrder", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasPrecision(3)
+                        .HasColumnType("datetime2(3)");
+
+                    b.Property<Guid>("CreatedByUserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateOnly?>("ExpectedDate")
+                        .HasColumnType("date");
+
+                    b.Property<string>("Notes")
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("int");
+
+                    b.Property<int>("StoreId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("SupplierId")
+                        .HasColumnType("int");
+
+                    b.Property<decimal>("TotalAmount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<DateTime>("UpdatedAtUtc")
+                        .HasPrecision(3)
+                        .HasColumnType("datetime2(3)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CreatedByUserId");
+
+                    b.HasIndex("Status", "ExpectedDate");
+
+                    b.HasIndex("SupplierId", "CreatedAtUtc")
+                        .IsDescending(false, true);
+
+                    b.HasIndex("StoreId", "Status", "CreatedAtUtc")
+                        .IsDescending(false, false, true);
+
+                    b.ToTable("PurchaseOrders", "purchasing", t =>
+                        {
+                            t.HasCheckConstraint("CK_PurchaseOrders_Status", "[Status] BETWEEN 1 AND 6");
+
+                            t.HasCheckConstraint("CK_PurchaseOrders_TotalAmount_NonNegative", "[TotalAmount] >= 0");
+                        });
+                });
+
+            modelBuilder.Entity("StoreControl.Domain.Purchasing.PurchaseOrderItem", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<decimal>("LineTotal")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("OrderedQuantity")
+                        .HasPrecision(18, 3)
+                        .HasColumnType("decimal(18,3)");
+
+                    b.Property<string>("ProductCode")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
+
+                    b.Property<int>("ProductId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("ProductName")
+                        .IsRequired()
+                        .HasMaxLength(160)
+                        .HasColumnType("nvarchar(160)");
+
+                    b.Property<long>("PurchaseOrderId")
+                        .HasColumnType("bigint");
+
+                    b.Property<decimal>("ReceivedQuantity")
+                        .HasPrecision(18, 3)
+                        .HasColumnType("decimal(18,3)");
+
+                    b.Property<decimal>("UnitCost")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ProductId");
+
+                    b.HasIndex("PurchaseOrderId", "ProductId")
+                        .IsUnique();
+
+                    b.ToTable("PurchaseOrderItems", "purchasing", t =>
+                        {
+                            t.HasCheckConstraint("CK_PurchaseOrderItems_LineTotal_NonNegative", "[LineTotal] >= 0");
+
+                            t.HasCheckConstraint("CK_PurchaseOrderItems_OrderedQuantity_Positive", "[OrderedQuantity] > 0");
+
+                            t.HasCheckConstraint("CK_PurchaseOrderItems_ReceivedQuantity_Range", "[ReceivedQuantity] >= 0 AND [ReceivedQuantity] <= [OrderedQuantity]");
+
+                            t.HasCheckConstraint("CK_PurchaseOrderItems_UnitCost_NonNegative", "[UnitCost] >= 0");
+                        });
+                });
+
+            modelBuilder.Entity("StoreControl.Domain.Purchasing.PurchaseReceipt", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Notes")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<long>("PurchaseOrderId")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTime>("ReceivedAtUtc")
+                        .HasPrecision(3)
+                        .HasColumnType("datetime2(3)");
+
+                    b.Property<Guid>("ReceivedByUserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ReceivedByUserId");
+
+                    b.HasIndex("PurchaseOrderId", "ReceivedAtUtc")
+                        .IsDescending(false, true);
+
+                    b.ToTable("PurchaseReceipts", "purchasing");
+                });
+
+            modelBuilder.Entity("StoreControl.Domain.Purchasing.PurchaseReceiptItem", b =>
+                {
+                    b.Property<Guid>("PurchaseReceiptId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<long>("PurchaseOrderItemId")
+                        .HasColumnType("bigint");
+
+                    b.Property<int>("ProductId")
+                        .HasColumnType("int");
+
+                    b.Property<decimal>("Quantity")
+                        .HasPrecision(18, 3)
+                        .HasColumnType("decimal(18,3)");
+
+                    b.HasKey("PurchaseReceiptId", "PurchaseOrderItemId");
+
+                    b.HasIndex("ProductId");
+
+                    b.HasIndex("PurchaseOrderItemId");
+
+                    b.ToTable("PurchaseReceiptItems", "purchasing", t =>
+                        {
+                            t.HasCheckConstraint("CK_PurchaseReceiptItems_Quantity_Positive", "[Quantity] > 0");
+                        });
+                });
+
+            modelBuilder.Entity("StoreControl.Domain.Purchasing.PurchaseStatusHistory", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<DateTime>("ChangedAtUtc")
+                        .HasPrecision(3)
+                        .HasColumnType("datetime2(3)");
+
+                    b.Property<Guid>("ChangedByUserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasMaxLength(300)
+                        .HasColumnType("nvarchar(300)");
+
+                    b.Property<long>("PurchaseOrderId")
+                        .HasColumnType("bigint");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ChangedByUserId");
+
+                    b.HasIndex("PurchaseOrderId", "ChangedAtUtc");
+
+                    b.ToTable("PurchaseStatusHistory", "purchasing", t =>
+                        {
+                            t.HasCheckConstraint("CK_PurchaseStatusHistory_Status", "[Status] BETWEEN 1 AND 6");
+                        });
                 });
 
             modelBuilder.Entity("StoreControl.Domain.Stores.Store", b =>
@@ -939,6 +1159,111 @@ namespace StoreControl.Infrastructure.Persistence.Migrations
                     b.Navigation("Store");
                 });
 
+            modelBuilder.Entity("StoreControl.Domain.Purchasing.PurchaseOrder", b =>
+                {
+                    b.HasOne("StoreControl.Infrastructure.Identity.ApplicationUser", null)
+                        .WithMany()
+                        .HasForeignKey("CreatedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("StoreControl.Domain.Stores.Store", "Store")
+                        .WithMany()
+                        .HasForeignKey("StoreId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("StoreControl.Domain.Parties.Supplier", "Supplier")
+                        .WithMany()
+                        .HasForeignKey("SupplierId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Store");
+
+                    b.Navigation("Supplier");
+                });
+
+            modelBuilder.Entity("StoreControl.Domain.Purchasing.PurchaseOrderItem", b =>
+                {
+                    b.HasOne("StoreControl.Domain.Catalog.Product", "Product")
+                        .WithMany()
+                        .HasForeignKey("ProductId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("StoreControl.Domain.Purchasing.PurchaseOrder", "PurchaseOrder")
+                        .WithMany("Items")
+                        .HasForeignKey("PurchaseOrderId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Product");
+
+                    b.Navigation("PurchaseOrder");
+                });
+
+            modelBuilder.Entity("StoreControl.Domain.Purchasing.PurchaseReceipt", b =>
+                {
+                    b.HasOne("StoreControl.Domain.Purchasing.PurchaseOrder", "PurchaseOrder")
+                        .WithMany("Receipts")
+                        .HasForeignKey("PurchaseOrderId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("StoreControl.Infrastructure.Identity.ApplicationUser", null)
+                        .WithMany()
+                        .HasForeignKey("ReceivedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("PurchaseOrder");
+                });
+
+            modelBuilder.Entity("StoreControl.Domain.Purchasing.PurchaseReceiptItem", b =>
+                {
+                    b.HasOne("StoreControl.Domain.Catalog.Product", "Product")
+                        .WithMany()
+                        .HasForeignKey("ProductId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("StoreControl.Domain.Purchasing.PurchaseOrderItem", "PurchaseOrderItem")
+                        .WithMany()
+                        .HasForeignKey("PurchaseOrderItemId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("StoreControl.Domain.Purchasing.PurchaseReceipt", "Receipt")
+                        .WithMany("Items")
+                        .HasForeignKey("PurchaseReceiptId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Product");
+
+                    b.Navigation("PurchaseOrderItem");
+
+                    b.Navigation("Receipt");
+                });
+
+            modelBuilder.Entity("StoreControl.Domain.Purchasing.PurchaseStatusHistory", b =>
+                {
+                    b.HasOne("StoreControl.Infrastructure.Identity.ApplicationUser", null)
+                        .WithMany()
+                        .HasForeignKey("ChangedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("StoreControl.Domain.Purchasing.PurchaseOrder", "PurchaseOrder")
+                        .WithMany("StatusHistory")
+                        .HasForeignKey("PurchaseOrderId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("PurchaseOrder");
+                });
+
             modelBuilder.Entity("StoreControl.Infrastructure.Identity.RefreshToken", b =>
                 {
                     b.HasOne("StoreControl.Infrastructure.Identity.RefreshToken", "ReplacedByToken")
@@ -1001,6 +1326,20 @@ namespace StoreControl.Infrastructure.Persistence.Migrations
                     b.Navigation("Store");
 
                     b.Navigation("User");
+                });
+
+            modelBuilder.Entity("StoreControl.Domain.Purchasing.PurchaseOrder", b =>
+                {
+                    b.Navigation("Items");
+
+                    b.Navigation("Receipts");
+
+                    b.Navigation("StatusHistory");
+                });
+
+            modelBuilder.Entity("StoreControl.Domain.Purchasing.PurchaseReceipt", b =>
+                {
+                    b.Navigation("Items");
                 });
 #pragma warning restore 612, 618
         }

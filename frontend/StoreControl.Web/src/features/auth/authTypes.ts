@@ -37,4 +37,6 @@ export const permissions = {
   suppliersManage: 'suppliers.manage',
   inventoryRead: 'inventory.read',
   inventoryManage: 'inventory.manage',
+  purchasesRead: 'purchases.read',
+  purchasesManage: 'purchases.manage',
 } as const

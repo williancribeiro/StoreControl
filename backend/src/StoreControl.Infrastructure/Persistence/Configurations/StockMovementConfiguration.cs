@@ -41,6 +41,15 @@ internal sealed class StockMovementConfiguration : IEntityTypeConfiguration<Stoc
         builder.HasIndex(movement => new { movement.ProductId, movement.OccurredAtUtc }).IsDescending(false, true);
         builder.HasIndex(movement => new { movement.ReferenceType, movement.ReferenceId })
             .HasFilter("[ReferenceType] IS NOT NULL");
+        builder.HasIndex(movement => new
+        {
+            movement.StoreId,
+            movement.ProductId,
+            movement.ReferenceType,
+            movement.ReferenceId
+        })
+            .IsUnique()
+            .HasFilter("[ReferenceType] IS NOT NULL AND [ReferenceId] IS NOT NULL");
         builder.HasOne<StockBalance>()
             .WithMany()
             .HasForeignKey(movement => new { movement.StoreId, movement.ProductId })

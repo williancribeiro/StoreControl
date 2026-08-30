@@ -1029,6 +1029,321 @@ td {
   overflow-wrap: anywhere;
 }
 
+.purchase-editor,
+.purchases-wide {
+  max-width: 1480px;
+}
+
+.purchase-form,
+.purchase-details-main,
+.purchase-details-side {
+  display: grid;
+  gap: 18px;
+}
+
+.purchase-header-fields {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.purchase-header-fields label,
+.purchase-item-inputs label,
+.receipt-notes,
+.cancel-purchase label {
+  color: #53685a;
+  font-size: 0.76rem;
+  font-weight: 700;
+}
+
+.purchase-header-fields input,
+.purchase-header-fields select,
+.purchase-item-inputs input,
+.purchase-item-inputs select,
+.receipt-notes textarea,
+.cancel-purchase input {
+  margin-top: 5px;
+}
+
+.purchase-product-search {
+  max-width: 760px;
+  margin-bottom: 12px;
+}
+
+.purchase-item-inputs {
+  display: grid;
+  grid-template-columns: minmax(270px, 1.5fr) minmax(120px, 0.45fr) minmax(140px, 0.55fr) auto;
+  align-items: end;
+  gap: 10px;
+}
+
+.purchase-item-inputs .button {
+  min-height: 41px;
+}
+
+.purchase-items-table {
+  margin-top: 20px;
+}
+
+.purchase-submit-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  margin-top: 20px;
+}
+
+.purchase-submit-row p {
+  margin: 0;
+  font-size: 0.84rem;
+}
+
+.purchase-filters {
+  grid-template-columns: minmax(210px, 1.4fr) repeat(3, minmax(150px, 0.75fr)) auto;
+}
+
+.status-pill.purchase-created {
+  color: #4d5c55;
+  background: #e7ece8;
+}
+
+.status-pill.purchase-pending,
+.status-pill.purchase-partiallyreceived {
+  color: #75581f;
+  background: #f6eacb;
+}
+
+.status-pill.purchase-received,
+.status-pill.purchase-finalized {
+  color: #24613a;
+  background: #dff1e4;
+}
+
+.status-pill.purchase-cancelled {
+  color: #84342e;
+  background: #f6dedb;
+}
+
+.purchase-details-layout {
+  display: grid;
+  max-width: 1480px;
+  grid-template-columns: minmax(0, 1.65fr) minmax(320px, 0.55fr);
+  align-items: start;
+  gap: 18px;
+}
+
+.purchase-details-side {
+  position: sticky;
+  top: 20px;
+}
+
+.purchase-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1px;
+  margin: 0;
+  overflow: hidden;
+  background: #e1e7e2;
+  border: 1px solid #e1e7e2;
+  border-radius: 9px;
+}
+
+.purchase-summary-grid div {
+  padding: 13px;
+  background: #f9fbf9;
+}
+
+.purchase-summary-grid dt {
+  margin-bottom: 5px;
+  color: #718077;
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.purchase-summary-grid dd {
+  margin: 0;
+  color: #2d4135;
+  font-size: 0.82rem;
+  font-weight: 650;
+}
+
+.purchase-notes {
+  margin: 18px 0 0;
+  padding: 12px;
+  background: #f5f8f5;
+  border-radius: 8px;
+  font-size: 0.85rem;
+}
+
+.receipt-panel > p {
+  font-size: 0.86rem;
+}
+
+.receipt-lines {
+  display: grid;
+  gap: 8px;
+  margin: 18px 0;
+}
+
+.receipt-lines label {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 150px;
+  align-items: center;
+  gap: 16px;
+  padding: 10px 12px;
+  background: #f7faf7;
+  border: 1px solid #e0e8e1;
+  border-radius: 8px;
+  color: #32493a;
+  font-size: 0.8rem;
+}
+
+.receipt-lines label small {
+  display: block;
+  margin-top: 3px;
+  color: #78877d;
+}
+
+.receipt-notes {
+  display: block;
+  margin-bottom: 14px;
+}
+
+.receipt-history {
+  display: grid;
+  gap: 12px;
+}
+
+.receipt-history section {
+  padding: 15px;
+  background: #f7faf7;
+  border: 1px solid #dfe7e0;
+  border-radius: 9px;
+}
+
+.receipt-history header,
+.receipt-history header small {
+  display: block;
+}
+
+.receipt-history header small {
+  margin-top: 4px;
+  color: #78877d;
+  overflow-wrap: anywhere;
+}
+
+.receipt-history p {
+  margin: 10px 0;
+  font-size: 0.82rem;
+}
+
+.receipt-history ul {
+  margin: 10px 0 0;
+  padding-left: 20px;
+  color: #405447;
+  font-size: 0.8rem;
+}
+
+.purchase-actions-panel {
+  display: grid;
+  gap: 12px;
+}
+
+.purchase-actions-panel h2,
+.purchase-timeline-panel h2 {
+  margin-bottom: 2px;
+}
+
+.cancel-purchase {
+  display: grid;
+  gap: 9px;
+  padding-top: 12px;
+  border-top: 1px solid #e2e8e3;
+}
+
+.purchase-timeline {
+  display: grid;
+  gap: 0;
+  margin: 15px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.purchase-timeline li {
+  position: relative;
+  padding: 0 0 20px 23px;
+  border-left: 2px solid #d4e1d7;
+}
+
+.purchase-timeline li::before {
+  position: absolute;
+  top: 2px;
+  left: -6px;
+  width: 10px;
+  height: 10px;
+  background: #5d986d;
+  border: 2px solid #fff;
+  border-radius: 50%;
+  content: "";
+}
+
+.purchase-timeline li:last-child {
+  padding-bottom: 0;
+  border-color: transparent;
+}
+
+.purchase-timeline strong,
+.purchase-timeline span,
+.purchase-timeline small {
+  display: block;
+}
+
+.purchase-timeline span {
+  margin: 4px 0;
+  color: #506358;
+  font-size: 0.78rem;
+}
+
+.purchase-timeline small {
+  color: #7b8980;
+  font-size: 0.7rem;
+}
+
+@media (max-width: 1100px) {
+  .purchase-header-fields,
+  .purchase-summary-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .purchase-item-inputs {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .purchase-details-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .purchase-details-side {
+    position: static;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 720px) {
+  .purchase-header-fields,
+  .purchase-item-inputs,
+  .purchase-summary-grid,
+  .purchase-details-side {
+    grid-template-columns: 1fr;
+  }
+
+  .purchase-submit-row,
+  .receipt-lines label {
+    align-items: stretch;
+    flex-direction: column;
+    grid-template-columns: 1fr;
+  }
+}
+
 .form-panel {
   position: sticky;
   top: 20px;

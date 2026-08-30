@@ -16,7 +16,7 @@ StoreControl is a modular monolith. API, Worker and DbMigrator are separate comp
 
 ## Project responsibilities
 
-- Domain: entities and invariants with no EF Core or ASP.NET Core dependency. It owns Store, Category, Product, Customer, Supplier, StockBalance, StockMovement and stable security names/codes.
+- Domain: entities and invariants with no EF Core or ASP.NET Core dependency. It owns Store, Category, Product, Customer, Supplier, stock and purchase aggregates, and stable security names/codes.
 - Application: use-case contracts, response models, exceptions and meaningful infrastructure ports.
 - Infrastructure: EF Core, SQL Server, Identity entities, session persistence, seeding and administration implementations.
 - Api: controllers, JWT issuing and validation, policies, middleware, OpenAPI and Problem Details.
@@ -74,6 +74,17 @@ Inventory adjustment:
     → explicit SQL transaction
     → inventory.StockBalances update + StockMovements insert
 
+Purchase receipt:
+
+    React purchase details page
+    → Axios with purchase rowversion + Idempotency-Key
+    → JWT purchases.manage policy
+    → PurchasesController
+    → IPurchaseService
+    → PurchaseService + PurchaseOrder/StockBalance aggregates
+    → one explicit SQL transaction with locked purchase root
+    → purchasing receipt/history + inventory balance/movements
+
 Foundation smoke:
 
     Authenticated browser → React SmokePage → GET /api/smoke → EF Core → SQL Server
@@ -92,6 +103,7 @@ Current schemas:
 - catalog: categories and products;
 - parties: customers and suppliers.
 - inventory: stock balances by product/store and their immutable movement ledger.
+- purchasing: purchase orders, historical items, receipts, receipt items and status history.
 
 ## Cross-cutting behavior
 

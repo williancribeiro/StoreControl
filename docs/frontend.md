@@ -26,6 +26,11 @@ StoreControl.Web is a separate React, TypeScript and Vite application. React Rou
     │   │   ├── StockMovementsPage
     │   │   ├── StockAdjustmentsPage
     │   │   └── inventory service/types
+    │   ├── purchasing/
+    │   │   ├── NewPurchasePage
+    │   │   ├── PurchasesPage
+    │   │   ├── PurchaseDetailsPage
+    │   │   └── purchase service/types
     │   └── system/SmokePage
     ├── routes/
     └── shared/
@@ -55,6 +60,9 @@ No browser storage contains tokens. Full page reloads therefore require refresh,
 - /inventory/positions;
 - /inventory/movements;
 - /inventory/adjustments;
+- /purchases/new;
+- /purchases;
+- /purchases/:purchaseId;
 - /system/smoke;
 - /access-denied.
 
@@ -74,5 +82,9 @@ ProtectedRoute handles authentication and PermissionRoute handles feature visibi
 - stock position by product/store with minimum and low-stock status;
 - movement history with signed change, before/after, actor and correlation;
 - positive/negative adjustment form that loads the current rowversion and reports 409 conflicts honestly.
+- purchase creation with active store/supplier/product selection, historical unit costs and an item total preview;
+- paginated purchase history with store/status/search/sort filters;
+- purchase details with status history, receipt history, lifecycle actions and partial/full receipt;
+- receipt retry reuses its client UUID until confirmed so an uncertain HTTP result does not duplicate stock.
 
 Vite proxies /api and /health to localhost:5090. Docker Nginx proxies the same paths to the API container, so cookies remain same-origin.
