@@ -8,6 +8,7 @@ public sealed class Sale
     private const decimal MaximumMoney = 999_999_999_999.99m;
     private readonly List<SaleItem> _items = [];
     private readonly List<SalePayment> _payments = [];
+    private readonly List<SaleStatusHistory> _statusHistory = [];
 
     private Sale()
     {
@@ -64,15 +65,29 @@ public sealed class Sale
 
     public DateTime? FinalizedAtUtc { get; private set; }
 
+    public Guid? CancellationOperationId { get; private set; }
+
+    public long? CancellationCashSessionId { get; private set; }
+
+    public Guid? CancelledByUserId { get; private set; }
+
+    public DateTime? CancelledAtUtc { get; private set; }
+
+    public string? CancellationReason { get; private set; }
+
     public decimal Subtotal { get; private set; }
 
     public decimal DiscountAmount { get; private set; }
 
     public decimal TotalAmount { get; private set; }
 
+    public byte[] RowVersion { get; private set; } = [];
+
     public IReadOnlyCollection<SaleItem> Items => _items.AsReadOnly();
 
     public IReadOnlyCollection<SalePayment> Payments => _payments.AsReadOnly();
+
+    public IReadOnlyCollection<SaleStatusHistory> StatusHistory => _statusHistory.AsReadOnly();
 
     public void AddItem(
         int productId,
@@ -138,6 +153,43 @@ public sealed class Sale
         _payments.AddRange(normalizedPayments);
         Status = SaleStatus.Finalized;
         FinalizedAtUtc = DateTime.UtcNow;
+        _statusHistory.Add(new SaleStatusHistory(
+            this,
+            SaleStatus.Finalized,
+            CreatedByUserId,
+            FinalizedAtUtc.Value,
+            "Venda finalizada."));
+    }
+
+    public void Cancel(
+        Guid cancellationOperationId,
+        long cancellationCashSessionId,
+        Guid cancelledByUserId,
+        string reason)
+    {
+        if (Status != SaleStatus.Finalized)
+        {
+            throw new InvalidOperationException("Somente uma venda finalizada pode ser cancelada.");
+        }
+
+        CancellationOperationId = cancellationOperationId != Guid.Empty
+            ? cancellationOperationId
+            : throw new ArgumentException("Informe um identificador de operação válido.", nameof(cancellationOperationId));
+        CancellationCashSessionId = cancellationCashSessionId > 0
+            ? cancellationCashSessionId
+            : throw new ArgumentException("Informe uma sessão de caixa válida.", nameof(cancellationCashSessionId));
+        CancelledByUserId = cancelledByUserId != Guid.Empty
+            ? cancelledByUserId
+            : throw new ArgumentException("Informe o usuário responsável.", nameof(cancelledByUserId));
+        CancellationReason = NormalizeRequired(reason, 500, nameof(reason));
+        Status = SaleStatus.Cancelled;
+        CancelledAtUtc = DateTime.UtcNow;
+        _statusHistory.Add(new SaleStatusHistory(
+            this,
+            SaleStatus.Cancelled,
+            CancelledByUserId.Value,
+            CancelledAtUtc.Value,
+            CancellationReason));
     }
 
     private void EnsureDraft()
@@ -146,5 +198,18 @@ public sealed class Sale
         {
             throw new InvalidOperationException("Uma venda finalizada não pode ser alterada.");
         }
+    }
+
+    private static string NormalizeRequired(string value, int maximumLength, string parameterName)
+    {
+        var normalized = value?.Trim();
+        if (string.IsNullOrWhiteSpace(normalized) || normalized.Length > maximumLength)
+        {
+            throw new ArgumentException(
+                $"O valor deve possuir entre 1 e {maximumLength} caracteres.",
+                parameterName);
+        }
+
+        return normalized;
     }
 }

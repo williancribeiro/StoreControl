@@ -64,5 +64,38 @@ public sealed class SaleTests
             sale.AddItem(10, "PRD-010", "Café", 2m, 10m));
     }
 
+    [Fact]
+    public void Cancellation_preserves_sale_values_and_records_audit_history()
+    {
+        var sale = NewSale();
+        sale.AddItem(10, "PRD-010", "Café", 2m, 10m);
+        sale.FinalizeSale(1m, [(PaymentMethod.Cash, 19m, (string?)null)]);
+        var operationId = Guid.NewGuid();
+        var userId = Guid.NewGuid();
+
+        sale.Cancel(operationId, 20, userId, "  Cliente desistiu da compra.  ");
+
+        Assert.Equal(SaleStatus.Cancelled, sale.Status);
+        Assert.Equal(20m, sale.Subtotal);
+        Assert.Equal(19m, sale.TotalAmount);
+        Assert.Equal(operationId, sale.CancellationOperationId);
+        Assert.Equal(userId, sale.CancelledByUserId);
+        Assert.Equal("Cliente desistiu da compra.", sale.CancellationReason);
+        Assert.Equal(2, sale.StatusHistory.Count);
+        Assert.NotNull(sale.CancelledAtUtc);
+    }
+
+    [Fact]
+    public void Cancellation_cannot_be_applied_twice()
+    {
+        var sale = NewSale();
+        sale.AddItem(10, "PRD-010", "Café", 1m, 10m);
+        sale.FinalizeSale(0m, [(PaymentMethod.Cash, 10m, (string?)null)]);
+        sale.Cancel(Guid.NewGuid(), 1, Guid.NewGuid(), "Primeiro cancelamento.");
+
+        Assert.Throws<InvalidOperationException>(() =>
+            sale.Cancel(Guid.NewGuid(), 1, Guid.NewGuid(), "Segundo cancelamento."));
+    }
+
     private static Sale NewSale() => new(Guid.NewGuid(), 1, 1, null, Guid.NewGuid());
 }

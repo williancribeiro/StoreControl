@@ -172,6 +172,9 @@ namespace StoreControl.Infrastructure.Persistence.Migrations
                         .HasMaxLength(50)
                         .HasColumnType("nvarchar(50)");
 
+                    b.Property<long?>("ReversedSalePaymentId")
+                        .HasColumnType("bigint");
+
                     b.Property<long?>("SalePaymentId")
                         .HasColumnType("bigint");
 
@@ -186,6 +189,10 @@ namespace StoreControl.Infrastructure.Persistence.Migrations
                     b.HasIndex("OperationId")
                         .IsUnique()
                         .HasFilter("[OperationId] IS NOT NULL");
+
+                    b.HasIndex("ReversedSalePaymentId")
+                        .IsUnique()
+                        .HasFilter("[ReversedSalePaymentId] IS NOT NULL");
 
                     b.HasIndex("SalePaymentId")
                         .IsUnique()
@@ -202,9 +209,9 @@ namespace StoreControl.Infrastructure.Persistence.Migrations
 
                             t.HasCheckConstraint("CK_CashMovements_Reference", "([ReferenceType] IS NULL AND [ReferenceId] IS NULL) OR ([ReferenceType] IS NOT NULL AND [ReferenceId] IS NOT NULL)");
 
-                            t.HasCheckConstraint("CK_CashMovements_SalePayment", "([MovementType] = 2 AND [PaymentMethod] BETWEEN 1 AND 6 AND [SalePaymentId] IS NOT NULL) OR ([MovementType] <> 2 AND [PaymentMethod] IS NULL AND [SalePaymentId] IS NULL)");
+                            t.HasCheckConstraint("CK_CashMovements_SalePayment", "([MovementType] = 2 AND [PaymentMethod] BETWEEN 1 AND 6 AND [SalePaymentId] IS NOT NULL AND [ReversedSalePaymentId] IS NULL) OR ([MovementType] = 5 AND [PaymentMethod] BETWEEN 1 AND 6 AND [SalePaymentId] IS NULL AND [ReversedSalePaymentId] IS NOT NULL) OR ([MovementType] NOT IN (2, 5) AND [PaymentMethod] IS NULL AND [SalePaymentId] IS NULL AND [ReversedSalePaymentId] IS NULL)");
 
-                            t.HasCheckConstraint("CK_CashMovements_TypeDirection", "([MovementType] IN (1, 2, 3) AND [Amount] > 0) OR ([MovementType] = 4 AND [Amount] < 0)");
+                            t.HasCheckConstraint("CK_CashMovements_TypeDirection", "([MovementType] IN (1, 2, 3) AND [Amount] > 0) OR ([MovementType] IN (4, 5) AND [Amount] < 0)");
                         });
                 });
 
@@ -944,6 +951,23 @@ namespace StoreControl.Infrastructure.Persistence.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
 
+                    b.Property<long?>("CancellationCashSessionId")
+                        .HasColumnType("bigint");
+
+                    b.Property<Guid?>("CancellationOperationId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("CancellationReason")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<DateTime?>("CancelledAtUtc")
+                        .HasPrecision(3)
+                        .HasColumnType("datetime2(3)");
+
+                    b.Property<Guid?>("CancelledByUserId")
+                        .HasColumnType("uniqueidentifier");
+
                     b.Property<long>("CashSessionId")
                         .HasColumnType("bigint");
 
@@ -968,6 +992,12 @@ namespace StoreControl.Infrastructure.Persistence.Migrations
                     b.Property<Guid>("OperationId")
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
                     b.Property<int>("Status")
                         .HasColumnType("int");
 
@@ -984,6 +1014,14 @@ namespace StoreControl.Infrastructure.Persistence.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("CancellationCashSessionId");
+
+                    b.HasIndex("CancellationOperationId")
+                        .IsUnique()
+                        .HasFilter("[CancellationOperationId] IS NOT NULL");
+
+                    b.HasIndex("CancelledByUserId");
+
                     b.HasIndex("CashSessionId");
 
                     b.HasIndex("CreatedByUserId");
@@ -999,9 +1037,11 @@ namespace StoreControl.Infrastructure.Persistence.Migrations
 
                     b.ToTable("Sales", "sales", t =>
                         {
+                            t.HasCheckConstraint("CK_Sales_CancellationLifecycle", "([Status] = 2 AND [CancellationOperationId] IS NULL AND [CancellationCashSessionId] IS NULL AND [CancelledByUserId] IS NULL AND [CancelledAtUtc] IS NULL AND [CancellationReason] IS NULL) OR ([Status] = 3 AND [CancellationOperationId] IS NOT NULL AND [CancellationCashSessionId] IS NOT NULL AND [CancelledByUserId] IS NOT NULL AND [CancelledAtUtc] IS NOT NULL AND LEN(LTRIM(RTRIM([CancellationReason]))) > 0)");
+
                             t.HasCheckConstraint("CK_Sales_Discount_Range", "[DiscountAmount] >= 0 AND [DiscountAmount] < [Subtotal]");
 
-                            t.HasCheckConstraint("CK_Sales_Status_Finalized", "[Status] = 2");
+                            t.HasCheckConstraint("CK_Sales_Status", "[Status] IN (2, 3)");
 
                             t.HasCheckConstraint("CK_Sales_Subtotal_Positive", "[Subtotal] > 0");
 
@@ -1098,6 +1138,46 @@ namespace StoreControl.Infrastructure.Persistence.Migrations
                             t.HasCheckConstraint("CK_SalePayments_Amount_Positive", "[Amount] > 0");
 
                             t.HasCheckConstraint("CK_SalePayments_Method", "[PaymentMethod] BETWEEN 1 AND 6");
+                        });
+                });
+
+            modelBuilder.Entity("StoreControl.Domain.Sales.SaleStatusHistory", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<DateTime>("ChangedAtUtc")
+                        .HasPrecision(3)
+                        .HasColumnType("datetime2(3)");
+
+                    b.Property<Guid>("ChangedByUserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<long>("SaleId")
+                        .HasColumnType("bigint");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ChangedByUserId");
+
+                    b.HasIndex("SaleId", "ChangedAtUtc");
+
+                    b.ToTable("SaleStatusHistory", "sales", t =>
+                        {
+                            t.HasCheckConstraint("CK_SaleStatusHistory_Description_NotBlank", "LEN(LTRIM(RTRIM([Description]))) > 0");
+
+                            t.HasCheckConstraint("CK_SaleStatusHistory_Status", "[Status] IN (2, 3)");
                         });
                 });
 
@@ -1493,10 +1573,17 @@ namespace StoreControl.Infrastructure.Persistence.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
+                    b.HasOne("StoreControl.Domain.Sales.SalePayment", "ReversedSalePayment")
+                        .WithOne()
+                        .HasForeignKey("StoreControl.Domain.Cash.CashMovement", "ReversedSalePaymentId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.HasOne("StoreControl.Domain.Sales.SalePayment", "SalePayment")
                         .WithOne()
                         .HasForeignKey("StoreControl.Domain.Cash.CashMovement", "SalePaymentId")
                         .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("ReversedSalePayment");
 
                     b.Navigation("SalePayment");
 
@@ -1706,6 +1793,16 @@ namespace StoreControl.Infrastructure.Persistence.Migrations
                 {
                     b.HasOne("StoreControl.Domain.Cash.CashSession", null)
                         .WithMany()
+                        .HasForeignKey("CancellationCashSessionId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("StoreControl.Infrastructure.Identity.ApplicationUser", null)
+                        .WithMany()
+                        .HasForeignKey("CancelledByUserId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("StoreControl.Domain.Cash.CashSession", null)
+                        .WithMany()
                         .HasForeignKey("CashSessionId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
@@ -1755,6 +1852,23 @@ namespace StoreControl.Infrastructure.Persistence.Migrations
                 {
                     b.HasOne("StoreControl.Domain.Sales.Sale", "Sale")
                         .WithMany("Payments")
+                        .HasForeignKey("SaleId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Sale");
+                });
+
+            modelBuilder.Entity("StoreControl.Domain.Sales.SaleStatusHistory", b =>
+                {
+                    b.HasOne("StoreControl.Infrastructure.Identity.ApplicationUser", null)
+                        .WithMany()
+                        .HasForeignKey("ChangedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("StoreControl.Domain.Sales.Sale", "Sale")
+                        .WithMany("StatusHistory")
                         .HasForeignKey("SaleId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
@@ -1850,6 +1964,8 @@ namespace StoreControl.Infrastructure.Persistence.Migrations
                     b.Navigation("Items");
 
                     b.Navigation("Payments");
+
+                    b.Navigation("StatusHistory");
                 });
 #pragma warning restore 612, 618
         }

@@ -4,7 +4,7 @@ Last updated: 2026-08-30.
 
 ## Current phase
 
-The commercial core is complete for transactional finalized sales, split payments and cash operation. It integrates with the existing product/store stock aggregate. Sale cancellation/reversal and store transfers remain later phases.
+The commercial core now includes transactional finalized sales, split payments, cash operation and audited cancellation/reversal. Store transfers are the active next delivery.
 
 ## Implemented
 
@@ -85,11 +85,12 @@ Sales and cash:
 - React PDV cart, product search, optional customer, quantity/discount calculation, multiple payments and transactional feedback;
 - React cash opening, live ledger, entry, exit, closing, history and session detail;
 - Domain and real-SQL tests for calculation, multiple products/payments, insufficient stock, last-item concurrency, rollback, cash lifecycle, permissions and scope;
+- cancellation without deletion, rowversion/idempotency, append-only status audit, stock return and signed payment refunds in one transaction;
 - sales-flow, cash-flow, architecture, ADR, database, API, authentication, frontend, inventory, testing and debugging documentation.
 
 ## Pending modules
 
-Sale cancellation/reversal, transfers, reporting, Redis cache integration, RabbitMQ producer/consumer integration and business Worker workloads.
+Transfers, reporting, Redis cache integration, RabbitMQ producer/consumer integration and business Worker workloads.
 
 MFA, external identity providers, password-recovery e-mail and self-registration remain outside the current phase.
 
@@ -101,8 +102,9 @@ MFA, external identity providers, password-recovery e-mail and self-registration
 - 20260828140319_Inventory: inventory schema, product/store balances, movement ledger, rowversion, check constraints, restrictive FKs and query/history indexes.
 - 20260830144940_PurchasesAndReceiving: purchasing aggregate, receipt/history tables, rowversion, checks, indexes and idempotent inventory-reference uniqueness.
 - 20260830190812_SalesAndCash: sales/cash schemas, finalized sale/item/payment rows, registers/sessions/signed ledger, rowversion, checks, restrictive relationships and idempotency/concurrency indexes.
+- 20260830233557_SaleCancellation: sale cancellation metadata/history/rowversion, refund-session references and signed one-to-one payment reversals.
 
-All six migrations execute from an empty SQL Server database in integration tests. SalesAndCash is applied to the local StoreControl database, and EF reports no pending model changes.
+All seven migrations execute from an empty SQL Server database in integration tests. EF reports no pending model changes.
 
 ## Seed data
 
@@ -138,10 +140,10 @@ This phase adds only the four sales/cash policies; JWT and refresh-token semanti
 
 ## Tests
 
-65 tests pass:
+70 tests pass:
 
-- 36 unit tests for architecture boundaries, Store, Category, Product, party, stock, purchase, sale and cash invariants, validation, money/quantity rounding and lifecycle rules;
-- 29 integration tests against real SQL Server for migrations/from-zero execution, Identity/JWT/refresh/security behavior, registrations, inventory, purchase, sale and cash atomicity/idempotency/authorization/store scope/SQL constraints.
+- 39 unit tests for architecture boundaries, Store, Category, Product, party, stock, purchase, sale and cash invariants, validation, money/quantity rounding and lifecycle rules;
+- 31 integration tests against real SQL Server for migrations/from-zero execution, Identity/JWT/refresh/security behavior, registrations, inventory, purchase, sale/cancellation and cash atomicity/idempotency/authorization/store scope/SQL constraints.
 
 Integration tests create uniquely prefixed temporary databases and verify the prefix before deletion. GitHub Actions starts an ephemeral SQL Server Developer container for this suite.
 
@@ -168,7 +170,7 @@ Integration tests create uniquely prefixed temporary databases and verify the pr
 - sale UUID is the idempotency boundary, while a cash-session root update lock serializes sale/close and one transaction covers sale, stock, payments and cash;
 - all sale prices/totals are calculated from server-loaded catalog data; frontend totals never establish integrity;
 - all payment forms enter the cash ledger, while only Cash changes expected physical cash;
-- finalized sales are immutable until a dedicated reversal/cancellation phase can preserve stock and cash auditability;
+- cancelling a sale preserves the original document and adds status history, paired stock returns and signed cash/payment refunds in the current open store session;
 - cost permits four decimal places; sale price permits two; Domain rounding uses AwayFromZero and SQL precision matches;
 - no cache was added because these administration queries are indexed, inexpensive and require fresh reads;
 - no stored procedure or view was introduced without a concrete query benefit;
@@ -184,7 +186,6 @@ Canonical commands and local demo setup are in the root README.md. Backend integ
 
 ## Known limitations
 
-- finalized sale creation exists, but sale cancellation/reversal is deliberately pending and finalized sales cannot yet be cancelled;
 - stock transfers are still pending;
 - customer/supplier documents validate normalized length, not Brazilian CPF/CNPJ check digits;
 - codes are unique within each resource, not globally across every resource;
@@ -201,7 +202,7 @@ Validated on Windows on 2026-08-30 with .NET 10, Node/npm and local SQL Server E
 - dotnet restore StoreControl.sln: passed;
 - dotnet format StoreControl.sln --verify-no-changes --no-restore: passed after normalizing EF-generated line endings;
 - dotnet build StoreControl.sln --no-restore: passed with zero warnings and zero errors;
-- dotnet test StoreControl.sln --no-build against `Server=.\SQLEXPRESS` with integrated authentication: 65 passed, 0 failed (36 unit and 29 integration);
+- dotnet test StoreControl.sln --no-build against `Server=.\SQLEXPRESS` with integrated authentication: 70 passed, 0 failed (39 unit and 31 integration);
 - migration discovery and execution from an empty database, including SalesAndCash: passed in every integration-test fixture;
 - `dotnet ef migrations has-pending-model-changes`: passed with no model drift;
 - idempotent migration SQL script generation: passed;
@@ -210,6 +211,7 @@ Validated on Windows on 2026-08-30 with .NET 10, Node/npm and local SQL Server E
 - direct SQL role mappings: Administrador 22, Gerente 19, Vendedor 10 and Estoquista 9 effective default permission rows;
 - real-SQL sale tests: normal multi-item/multi-payment commit, exact idempotent replay, insufficient-stock rollback, simultaneous last-item contention, forced cross-module rollback, permission and store scope all passed;
 - real-SQL cash tests: idempotent open, signed entry/exit, physical expected balance, close/difference and complete ledger passed;
+- real-SQL cancellation tests: status/history preservation, exact replay, stock restoration, signed refund and cross-module rollback passed;
 - all existing authentication, registration, inventory and purchasing suites remained green;
 - npm ci: passed with 0 reported vulnerabilities;
 - npm run typecheck: passed;

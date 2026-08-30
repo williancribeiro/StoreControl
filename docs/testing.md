@@ -13,7 +13,7 @@ StoreControl.UnitTests currently verifies:
 - StockBalance quantity precision, movement direction, before/after arithmetic, insufficient-stock rejection and low-stock calculation.
 - PurchaseOrder money/quantity rounding, snapshots, lifecycle, partial/full receipts, duplicate receipt rejection and cancellation rules.
 - Sale historical-price capture, multiple-item/payment calculation, discount/payment invariants and duplicate-item rejection.
-- CashSession physical-cash calculation, signed manual movements, close difference and closed-session rejection.
+- CashSession physical-cash calculation, signed manual/refund movements, close difference and closed-session rejection.
 
 ## Integration tests
 
@@ -52,6 +52,7 @@ Coverage currently includes:
 - forced SQL failure proving rollback across sale, multiple stock changes and cash movements;
 - opening/manual entry/manual exit/closing cash lifecycle and difference calculation;
 - sales/cash permission policies and store-scoped register visibility.
+- sale cancellation stock/cash restoration, exact idempotent replay, preserved history and rollback when a refund cannot be paid.
 
 Set STORECONTROL_TEST_DB_CONNECTION to a SQL Server connection with create/drop database permission. The connection's database name is replaced with a safe unique test name. `scripts/Set-LocalEnvironment.ps1` prepares this value from the ignored local `.env`. GitHub Actions starts SQL Server with a newly generated masked password for each run rather than storing a working credential in the workflow.
 

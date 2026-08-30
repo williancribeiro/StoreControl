@@ -1,6 +1,6 @@
 # Sales flow
 
-Status: implemented for creation/finalization. Cancellation and reversal are intentionally deferred.
+Status: implemented for finalization and audited cancellation/reversal.
 
 ## Boundary
 
@@ -68,6 +68,10 @@ The tested result is one sale, one sale stock movement and zero remaining quanti
 
 `sales.read` and `sales.manage` policies are enforced by the API. Current defaults grant both to Administrador, Gerente and Vendedor; Estoquista has neither. Non-administrators remain limited to assigned stores.
 
-## Deliberate next step
+## Cancellation and reversal
 
-Cancellation was not improvised as a status toggle. It requires a separately specified reversal operation that preserves the sale, prevents duplicate reversal, returns stock, emits `SaleReversal` movements and reverses/records cash consistently. Until that phase exists, finalized sales are immutable.
+`POST /api/sales/{saleId}/cancellation` requires `sales.manage`, the current sale rowversion, an open cash session from the same store, a reason and a UUID `Idempotency-Key`. The finalized sale is never deleted or rewritten as a new sale. One transaction locks the sale and refund-session roots, changes the status to `Cancelled`, appends status history, returns every item through `SaleReversal` stock movements and appends one `SaleRefund` cash-ledger movement for every original payment.
+
+Only a Cash refund reduces expected physical cash; card, Pix, voucher and other refunds remain signed ledger records for reconciliation. A closed original sale session is not reopened or modified: the operator selects the current open session that performs the refund. Insufficient physical cash, stale rowversion, invalid lifecycle, a duplicate reversal or any persistence failure rolls back status, stock and cash together.
+
+`CancellationOperationId` and one-to-one links from each refund to its original `SalePayment` prevent duplicate effects. An exact retry returns `wasAlreadyProcessed=true`; a different cancellation key against an already cancelled sale returns 409. Sale details expose the cancellation actor/time/reason/session, current rowversion and append-only status history.

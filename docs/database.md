@@ -36,15 +36,16 @@ purchasing:
 
 sales:
 
-- Sales: unique operation UUID, store/customer/user/cash-session FKs, finalized status/timestamps and decimal(18,2) subtotal/discount/total;
+- Sales: unique operation UUID, store/customer/user/cash-session FKs, finalized/cancelled lifecycle, cancellation audit/session, rowversion and decimal(18,2) subtotal/discount/total;
 - SaleItems: immutable product code/name, decimal(18,3) quantity and historical decimal(18,2) price/subtotal;
 - SalePayments: 1–10 positive decimal(18,2) payment splits and optional provider/reference text.
+- SaleStatusHistory: append-only finalized/cancelled audit with actor, time and description.
 
 cash:
 
 - CashRegisters: active named terminals with unique code per store and rowversion;
 - CashSessions: idempotent opening UUID, opener/closer, status, physical expected/declared/difference amounts and rowversion;
-- CashMovements: signed Opening/SalePayment/CashIn/CashOut ledger, actor, correlation, reference, optional manual operation UUID and one-to-one sale-payment link.
+- CashMovements: signed Opening/SalePayment/CashIn/CashOut/SaleRefund ledger, actor, correlation, reference, optional manual operation UUID and distinct original/reversed sale-payment links.
 
 security:
 
@@ -63,6 +64,7 @@ Normalized e-mail and normalized username are protected by filtered unique index
 - 20260828140319_Inventory: creates inventory.StockBalances and StockMovements with composite relationship, rowversion, ledger constraints, restrictive foreign keys and history/query indexes.
 - 20260830144940_PurchasesAndReceiving: creates the purchasing schema, purchase aggregate/receipt/history tables, constraints, rowversion and receipt-reference uniqueness in the inventory ledger.
 - 20260830190812_SalesAndCash: creates sales/cash schemas, finalized sale/item/payment tables, register/session/signed-ledger tables, financial/lifecycle checks, restrictive relationships, rowversion and idempotency/concurrency indexes.
+- 20260830233557_SaleCancellation: adds sale rowversion/cancellation audit, status history, refund-session linkage and one-to-one signed payment reversals; existing finalized sales receive a history row.
 
 All migrations were validated from an empty database and in a generated idempotent SQL script.
 
@@ -72,9 +74,9 @@ DbMigrator seeds system roles, 22 permission definitions, default mappings, CENT
 
 ## Concurrency and constraints
 
-Store, main-registration, purchase, stock-balance and cash-session updates supply Base64 rowversion; stale updates return HTTP 409. Stock adjustments use an explicit ReadCommitted transaction inside the SQL retry execution strategy so the balance update and ledger insert commit together. Purchase receipt uses the same transaction strategy and locks the purchase root. Sale finalization locks the cash-session root and commits the sale, every balance/stock movement, payment and cash movement together; StockBalance rowversion protects contention across different registers. Cash manual/close operations use that same root lock. Refresh rotation also uses rowversion so two requests cannot successfully rotate the same token.
+Store, main-registration, purchase, sale, stock-balance and cash-session updates supply Base64 rowversion; stale updates return HTTP 409. Stock adjustments use an explicit ReadCommitted transaction inside the SQL retry execution strategy so the balance update and ledger insert commit together. Purchase receipt uses the same transaction strategy and locks the purchase root. Sale finalization locks the cash-session root and commits the sale, every balance/stock movement, payment and cash movement together; StockBalance rowversion protects contention across different registers. Cancellation locks sale and refund-session roots and commits status history, stock returns and payment refunds together. Cash manual/close operations use that same root lock. Refresh rotation also uses rowversion so two requests cannot successfully rotate the same token.
 
-Application validation improves error messages, but SQL unique indexes, foreign keys and check constraints remain the final integrity boundary. Inventory constraints reject negative balances, zero changes, invalid movement direction and inconsistent before/change/after arithmetic. Purchasing constraints protect status ranges, quantity bounds, received-at-most-ordered, line totals and required snapshots. Sales constraints protect finalized-only persistence, financial equations, historical data and payment validity. Cash constraints protect lifecycle, signed direction, physical balances and sale-payment linkage. Receipt/sale UUIDs plus filtered business-reference indexes prevent committed stock effects from being applied twice.
+Application validation improves error messages, but SQL unique indexes, foreign keys and check constraints remain the final integrity boundary. Inventory constraints reject negative balances, zero changes, invalid movement direction and inconsistent before/change/after arithmetic. Purchasing constraints protect status ranges, quantity bounds, received-at-most-ordered, line totals and required snapshots. Sales constraints protect finalized/cancelled lifecycle, cancellation metadata, financial equations, historical data and payment validity. Cash constraints protect lifecycle, signed direction, physical balances and original/refunded sale-payment linkage. Receipt/sale/cancellation UUIDs plus filtered business-reference indexes prevent committed stock effects from being applied twice.
 
 ## Configuration
 

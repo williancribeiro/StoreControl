@@ -144,6 +144,37 @@ public sealed class CashSession
         return movement;
     }
 
+    public CashMovement RecordSaleRefund(
+        SalePayment payment,
+        Guid userId,
+        string correlationId,
+        Guid cancellationOperationId)
+    {
+        EnsureOpen();
+        ArgumentNullException.ThrowIfNull(payment);
+        var movement = new CashMovement(
+            this,
+            CashMovementType.SaleRefund,
+            payment.Method,
+            payment.Amount,
+            "Estorno de pagamento por cancelamento de venda.",
+            userId,
+            correlationId,
+            "SaleCancellation",
+            cancellationOperationId.ToString("D"),
+            null,
+            null,
+            payment);
+        if (payment.Method == PaymentMethod.Cash)
+        {
+            ApplyExpectedCashChange(movement.Amount);
+        }
+
+        _movements.Add(movement);
+        UpdatedAtUtc = movement.OccurredAtUtc;
+        return movement;
+    }
+
     public void Close(Guid userId, decimal declaredClosingAmount)
     {
         EnsureOpen();

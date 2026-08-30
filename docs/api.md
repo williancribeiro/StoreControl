@@ -82,6 +82,7 @@ Swagger defines bearer authentication. Access tokens are returned in the login/r
 - GET /api/sales: `sales.read`; pagination, search, store/customer/payment/date filters and sorting;
 - GET /api/sales/{saleId}: `sales.read`; complete historical item/payment representation;
 - POST /api/sales: `sales.manage`; required UUID `Idempotency-Key`, store, open cash session, optional customer, discount, 1–100 item quantities and 1–10 payments.
+- POST /api/sales/{saleId}/cancellation: `sales.manage`; required UUID `Idempotency-Key`, current sale rowVersion, reason and open refund cash session from the same store.
 
 The server sources current product prices and calculates every financial value. A new atomic finalization returns 201; exact idempotent replay returns 200 with `wasAlreadyProcessed=true`. Insufficient stock, altered idempotency payload and concurrency conflicts return 409. Invalid products, customer, totals, payment sums or cash session return validation Problem Details. Store scope is enforced on every read and write.
 

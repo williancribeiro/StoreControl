@@ -199,6 +199,127 @@ public sealed class SalesAndCashTests(SqlServerApiFactory factory) : IClassFixtu
     }
 
     [Fact]
+    public async Task Cancellation_restores_stock_refunds_cash_preserves_sale_and_replays_idempotently()
+    {
+        using var client = await CreateAuthenticatedClientAsync(
+            "admin@storecontrol.local",
+            SqlServerApiFactory.AdminPassword);
+        var context = await GetSaleContextAsync(client, "CENTRAL", 1);
+        var session = await GetOrOpenSessionAsync(client, context.CashRegisterId);
+        var product = context.Products[0];
+        var quantityBefore = (await GetQuantitiesAsync(context.StoreId, [product.Id]))[product.Id];
+        var expectedCashBefore = session.GetProperty("expectedCashAmount").GetDecimal();
+        var saleResponse = await SendSaleAsync(
+            client,
+            Guid.NewGuid(),
+            context.StoreId,
+            session.GetProperty("id").GetInt64(),
+            product.Id,
+            1m,
+            product.SalePrice);
+        Assert.Equal(HttpStatusCode.Created, saleResponse.StatusCode);
+        var saleDocument = await saleResponse.Content.ReadFromJsonAsync<JsonDocument>();
+        var sale = saleDocument!.RootElement.GetProperty("sale").Clone();
+        var cancellationId = Guid.NewGuid();
+        var cancellationBody = new
+        {
+            cashSessionId = session.GetProperty("id").GetInt64(),
+            rowVersion = sale.GetProperty("rowVersion").GetString(),
+            reason = "Cliente desistiu antes de retirar a mercadoria."
+        };
+
+        var response = await SendWithIdempotencyAsync(
+            client,
+            $"/api/sales/{sale.GetProperty("id").GetInt64()}/cancellation",
+            cancellationId,
+            cancellationBody);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var payload = await response.Content.ReadFromJsonAsync<JsonDocument>();
+        var result = payload!.RootElement;
+        Assert.False(result.GetProperty("wasAlreadyProcessed").GetBoolean());
+        var cancelled = result.GetProperty("sale");
+        Assert.Equal("Cancelled", cancelled.GetProperty("status").GetString());
+        Assert.Equal(2, cancelled.GetProperty("statusHistory").GetArrayLength());
+        Assert.Equal(quantityBefore, (await GetQuantitiesAsync(context.StoreId, [product.Id]))[product.Id]);
+        Assert.Equal(expectedCashBefore, (await GetCurrentSessionAsync(client, context.CashRegisterId))
+            .GetProperty("expectedCashAmount").GetDecimal());
+
+        var replayResponse = await SendWithIdempotencyAsync(
+            client,
+            $"/api/sales/{sale.GetProperty("id").GetInt64()}/cancellation",
+            cancellationId,
+            cancellationBody);
+        Assert.Equal(HttpStatusCode.OK, replayResponse.StatusCode);
+        var replay = await replayResponse.Content.ReadFromJsonAsync<JsonDocument>();
+        Assert.True(replay!.RootElement.GetProperty("wasAlreadyProcessed").GetBoolean());
+
+        await using var scope = factory.Services.CreateAsyncScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<StoreControlDbContext>();
+        Assert.Equal(1, await dbContext.Sales.CountAsync(item =>
+            item.Id == sale.GetProperty("id").GetInt64() &&
+            item.Status == StoreControl.Domain.Sales.SaleStatus.Cancelled));
+        Assert.Equal(1, await dbContext.StockMovements.CountAsync(item =>
+            item.ReferenceType == "SaleCancellation" && item.ReferenceId == cancellationId.ToString("D")));
+        Assert.Equal(1, await dbContext.CashMovements.CountAsync(item =>
+            item.ReferenceType == "SaleCancellation" && item.ReferenceId == cancellationId.ToString("D")));
+    }
+
+    [Fact]
+    public async Task Failed_cash_refund_rolls_back_sale_status_and_stock_reversal()
+    {
+        using var client = await CreateAuthenticatedClientAsync(
+            "admin@storecontrol.local",
+            SqlServerApiFactory.AdminPassword);
+        var context = await GetSaleContextAsync(client, "NORTE", 1);
+        var session = await GetOrOpenSessionAsync(client, context.CashRegisterId);
+        var product = context.Products[0];
+        var saleResponse = await SendSaleAsync(
+            client,
+            Guid.NewGuid(),
+            context.StoreId,
+            session.GetProperty("id").GetInt64(),
+            product.Id,
+            1m,
+            product.SalePrice);
+        Assert.Equal(HttpStatusCode.Created, saleResponse.StatusCode);
+        var saleDocument = await saleResponse.Content.ReadFromJsonAsync<JsonDocument>();
+        var sale = saleDocument!.RootElement.GetProperty("sale").Clone();
+        var stockAfterSale = (await GetQuantitiesAsync(context.StoreId, [product.Id]))[product.Id];
+        var currentSession = await GetCurrentSessionAsync(client, context.CashRegisterId);
+        currentSession = await AddCashMovementAsync(
+            client,
+            currentSession,
+            "CashOut",
+            currentSession.GetProperty("expectedCashAmount").GetDecimal(),
+            "Retirada total para testar rollback do estorno");
+        var cancellationId = Guid.NewGuid();
+
+        var response = await SendWithIdempotencyAsync(
+            client,
+            $"/api/sales/{sale.GetProperty("id").GetInt64()}/cancellation",
+            cancellationId,
+            new
+            {
+                cashSessionId = currentSession.GetProperty("id").GetInt64(),
+                rowVersion = sale.GetProperty("rowVersion").GetString(),
+                reason = "Cancelamento que exige numerário indisponível."
+            });
+
+        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+        var persisted = await client.GetFromJsonAsync<JsonDocument>(
+            $"/api/sales/{sale.GetProperty("id").GetInt64()}");
+        Assert.Equal("Finalized", persisted!.RootElement.GetProperty("status").GetString());
+        Assert.Equal(stockAfterSale, (await GetQuantitiesAsync(context.StoreId, [product.Id]))[product.Id]);
+        await using var scope = factory.Services.CreateAsyncScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<StoreControlDbContext>();
+        Assert.Equal(0, await dbContext.StockMovements.CountAsync(item =>
+            item.ReferenceType == "SaleCancellation" && item.ReferenceId == cancellationId.ToString("D")));
+        Assert.Equal(0, await dbContext.CashMovements.CountAsync(item =>
+            item.ReferenceType == "SaleCancellation" && item.ReferenceId == cancellationId.ToString("D")));
+    }
+
+    [Fact]
     public async Task Cash_session_supports_idempotent_open_signed_manual_movements_and_close()
     {
         using var client = await CreateAuthenticatedClientAsync(

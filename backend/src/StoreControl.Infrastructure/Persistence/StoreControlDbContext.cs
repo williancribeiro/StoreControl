@@ -54,6 +54,8 @@ public sealed class StoreControlDbContext(DbContextOptions<StoreControlDbContext
 
     public DbSet<SalePayment> SalePayments => Set<SalePayment>();
 
+    public DbSet<SaleStatusHistory> SaleStatusHistory => Set<SaleStatusHistory>();
+
     public DbSet<Permission> Permissions => Set<Permission>();
 
     public DbSet<RolePermission> RolePermissions => Set<RolePermission>();

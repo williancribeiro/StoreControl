@@ -318,6 +318,159 @@ internal sealed class SaleService(
             executionResult.Item2);
     }
 
+    public async Task<CancelSaleResult> CancelAsync(
+        Guid userId,
+        string correlationId,
+        long saleId,
+        CancelSaleCommand command,
+        CancellationToken cancellationToken)
+    {
+        if (command.OperationId == Guid.Empty)
+        {
+            throw new RequestValidationException("Idempotency-Key", "Informe um UUID válido no cabeçalho Idempotency-Key.");
+        }
+
+        var expectedRowVersion = ParseRowVersion(command.RowVersion);
+        var normalizedReason = string.IsNullOrWhiteSpace(command.Reason) ? null : command.Reason.Trim();
+        if (normalizedReason is null || normalizedReason.Length > 500)
+        {
+            throw new RequestValidationException("reason", "Informe um motivo com até 500 caracteres.");
+        }
+
+        var accessibleStoreIds = await GetAccessibleStoreIdsAsync(userId, cancellationToken);
+        var strategy = dbContext.Database.CreateExecutionStrategy();
+        var result = await strategy.ExecuteAsync(async () =>
+        {
+            await using var transaction = await dbContext.Database.BeginTransactionAsync(
+                IsolationLevel.ReadCommitted,
+                cancellationToken);
+            try
+            {
+                var operationReplay = await DetailsQuery(false)
+                    .SingleOrDefaultAsync(
+                        sale => sale.CancellationOperationId == command.OperationId,
+                        cancellationToken);
+                if (operationReplay is not null)
+                {
+                    EnsureCancellationReplayMatches(operationReplay, saleId, userId, command, normalizedReason);
+                    EnsureStoreIsAccessible(operationReplay.StoreId, accessibleStoreIds);
+                    await transaction.CommitAsync(cancellationToken);
+                    return (operationReplay.Id, true);
+                }
+
+                var sale = await LockedSaleQuery(saleId).SingleOrDefaultAsync(cancellationToken)
+                    ?? throw new ResourceNotFoundException("Venda não encontrada.");
+                EnsureStoreIsAccessible(sale.StoreId, accessibleStoreIds);
+                if (sale.Status == SaleStatus.Cancelled)
+                {
+                    throw new ResourceConflictException("A venda já está cancelada.");
+                }
+
+                if (!sale.RowVersion.SequenceEqual(expectedRowVersion))
+                {
+                    throw new ResourceConflictException(
+                        "A venda foi alterada por outra operação. Recarregue os dados antes de tentar novamente.");
+                }
+
+                var cashSession = await LockedCashSessionQuery(command.CashSessionId)
+                    .SingleOrDefaultAsync(cancellationToken)
+                    ?? throw new RequestValidationException("cashSessionId", "A sessão de caixa informada não existe.");
+                EnsureStoreIsAccessible(cashSession.CashRegister.StoreId, accessibleStoreIds);
+                if (cashSession.CashRegister.StoreId != sale.StoreId)
+                {
+                    throw new RequestValidationException(
+                        "cashSessionId",
+                        "A sessão de caixa do estorno deve pertencer à loja da venda.");
+                }
+
+                if (!cashSession.CashRegister.IsActive || !cashSession.CashRegister.Store.IsActive)
+                {
+                    throw new RequestValidationException("cashSessionId", "O caixa e sua loja devem estar ativos.");
+                }
+
+                var productIds = sale.Items.Select(item => item.ProductId).OrderBy(id => id).ToArray();
+                var balances = await dbContext.StockBalances
+                    .Where(balance => balance.StoreId == sale.StoreId && productIds.Contains(balance.ProductId))
+                    .OrderBy(balance => balance.ProductId)
+                    .ToDictionaryAsync(balance => balance.ProductId, cancellationToken);
+                if (balances.Count != productIds.Length)
+                {
+                    throw new ResourceConflictException(
+                        "A posição de estoque original da venda não está disponível para o estorno.");
+                }
+
+                foreach (var item in sale.Items.OrderBy(item => item.ProductId))
+                {
+                    dbContext.StockMovements.Add(balances[item.ProductId].ApplyMovement(
+                        StockMovementType.SaleReversal,
+                        item.Quantity,
+                        $"Devolução do cancelamento da venda {sale.Id}.",
+                        userId,
+                        correlationId,
+                        "SaleCancellation",
+                        command.OperationId.ToString("D")));
+                }
+
+                foreach (var payment in sale.Payments.OrderBy(payment => payment.Id))
+                {
+                    cashSession.RecordSaleRefund(payment, userId, correlationId, command.OperationId);
+                }
+
+                sale.Cancel(command.OperationId, command.CashSessionId, userId, normalizedReason);
+                await dbContext.SaveChangesAsync(cancellationToken);
+                await transaction.CommitAsync(cancellationToken);
+                logger.LogInformation(
+                    "Sale {SaleId} cancelled in store {StoreId} by user {UserId}",
+                    sale.Id,
+                    sale.StoreId,
+                    userId);
+                return (sale.Id, false);
+            }
+            catch (DbUpdateConcurrencyException)
+            {
+                await transaction.RollbackAsync(CancellationToken.None);
+                throw new ResourceConflictException(
+                    "A venda, o estoque ou o caixa foi alterado por outra operação. Recarregue os dados.");
+            }
+            catch (DbUpdateException exception) when (IsUniqueConstraintViolation(exception))
+            {
+                await transaction.RollbackAsync(CancellationToken.None);
+                dbContext.ChangeTracker.Clear();
+                var replay = await DetailsQuery(false)
+                    .SingleOrDefaultAsync(
+                        sale => sale.CancellationOperationId == command.OperationId,
+                        cancellationToken);
+                if (replay is not null)
+                {
+                    EnsureCancellationReplayMatches(replay, saleId, userId, command, normalizedReason);
+                    return (replay.Id, true);
+                }
+
+                throw new ResourceConflictException(
+                    "O cancelamento não foi concluído por um conflito de persistência. Nenhuma alteração foi aplicada.");
+            }
+            catch (ArgumentException exception)
+            {
+                await transaction.RollbackAsync(CancellationToken.None);
+                throw Validation(exception);
+            }
+            catch (InvalidOperationException exception)
+            {
+                await transaction.RollbackAsync(CancellationToken.None);
+                throw new ResourceConflictException(exception.Message);
+            }
+            catch
+            {
+                await transaction.RollbackAsync(CancellationToken.None);
+                throw;
+            }
+        });
+
+        return new CancelSaleResult(
+            await GetAsync(userId, result.Id, cancellationToken),
+            result.Item2);
+    }
+
     private IQueryable<Sale> DetailsQuery(bool tracking)
     {
         var query = dbContext.Sales
@@ -325,6 +478,7 @@ internal sealed class SaleService(
             .Include(sale => sale.Customer)
             .Include(sale => sale.Items)
             .Include(sale => sale.Payments)
+            .Include(sale => sale.StatusHistory)
             .AsSplitQuery();
         return tracking ? query : query.AsNoTracking();
     }
@@ -339,18 +493,44 @@ internal sealed class SaleService(
             .Include(session => session.CashRegister)
                 .ThenInclude(register => register.Store);
 
+    private IQueryable<Sale> LockedSaleQuery(long saleId) =>
+        dbContext.Sales
+            .FromSqlInterpolated($"""
+                SELECT *
+                FROM [sales].[Sales] WITH (UPDLOCK, ROWLOCK)
+                WHERE [Id] = {saleId}
+                """)
+            .Include(sale => sale.Store)
+            .Include(sale => sale.Customer)
+            .Include(sale => sale.Items)
+            .Include(sale => sale.Payments)
+            .Include(sale => sale.StatusHistory)
+            .AsSplitQuery();
+
     private async Task<SaleDetails> MapDetailsAsync(Sale sale, CancellationToken cancellationToken)
     {
-        var userName = await dbContext.Users
+        var relatedUserIds = sale.StatusHistory
+            .Select(history => history.ChangedByUserId)
+            .Append(sale.CreatedByUserId)
+            .Concat(sale.CancelledByUserId.HasValue ? [sale.CancelledByUserId.Value] : [])
+            .Distinct()
+            .ToArray();
+        var userNames = await dbContext.Users
             .AsNoTracking()
-            .Where(user => user.Id == sale.CreatedByUserId)
-            .Select(user => user.FullName)
-            .SingleAsync(cancellationToken);
+            .Where(user => relatedUserIds.Contains(user.Id))
+            .ToDictionaryAsync(user => user.Id, user => user.FullName, cancellationToken);
         var cashRegisterCode = await dbContext.CashSessions
             .AsNoTracking()
             .Where(session => session.Id == sale.CashSessionId)
             .Select(session => session.CashRegister.Code)
             .SingleAsync(cancellationToken);
+        var cancellationCashRegisterCode = sale.CancellationCashSessionId.HasValue
+            ? await dbContext.CashSessions
+                .AsNoTracking()
+                .Where(session => session.Id == sale.CancellationCashSessionId.Value)
+                .Select(session => session.CashRegister.Code)
+                .SingleAsync(cancellationToken)
+            : null;
 
         return new SaleDetails(
             sale.Id,
@@ -363,12 +543,20 @@ internal sealed class SaleService(
             sale.Customer?.Code,
             sale.Customer?.Name,
             sale.CreatedByUserId,
-            userName,
+            userNames[sale.CreatedByUserId],
             sale.CashSessionId,
             cashRegisterCode,
             sale.Status.ToString(),
             sale.CreatedAtUtc,
             sale.FinalizedAtUtc!.Value,
+            sale.CancellationOperationId,
+            sale.CancellationCashSessionId,
+            cancellationCashRegisterCode,
+            sale.CancelledByUserId,
+            sale.CancelledByUserId.HasValue ? userNames[sale.CancelledByUserId.Value] : null,
+            sale.CancelledAtUtc,
+            sale.CancellationReason,
+            Convert.ToBase64String(sale.RowVersion),
             sale.Subtotal,
             sale.DiscountAmount,
             sale.TotalAmount,
@@ -390,6 +578,17 @@ internal sealed class SaleService(
                     payment.Method.ToString(),
                     payment.Amount,
                     payment.Reference))
+                .ToArray(),
+            sale.StatusHistory
+                .OrderBy(history => history.ChangedAtUtc)
+                .ThenBy(history => history.Id)
+                .Select(history => new SaleStatusHistorySummary(
+                    history.Id,
+                    history.Status.ToString(),
+                    history.ChangedByUserId,
+                    userNames[history.ChangedByUserId],
+                    history.ChangedAtUtc,
+                    history.Description))
                 .ToArray());
     }
 
@@ -467,6 +666,37 @@ internal sealed class SaleService(
             !existingPayments.SequenceEqual(requestedPayments))
         {
             throw new ResourceConflictException("A chave de idempotência já foi usada com outra venda.");
+        }
+    }
+
+    private static void EnsureCancellationReplayMatches(
+        Sale sale,
+        long saleId,
+        Guid userId,
+        CancelSaleCommand command,
+        string normalizedReason)
+    {
+        if (sale.Id != saleId ||
+            sale.CancelledByUserId != userId ||
+            sale.CancellationCashSessionId != command.CashSessionId ||
+            !string.Equals(sale.CancellationReason, normalizedReason, StringComparison.Ordinal))
+        {
+            throw new ResourceConflictException("A chave de idempotência já foi usada em outro cancelamento.");
+        }
+    }
+
+    private static byte[] ParseRowVersion(string value)
+    {
+        try
+        {
+            var parsed = Convert.FromBase64String(value);
+            return parsed.Length == 8
+                ? parsed
+                : throw new FormatException();
+        }
+        catch (FormatException)
+        {
+            throw new RequestValidationException("rowVersion", "A versão de concorrência informada é inválida.");
         }
     }
 

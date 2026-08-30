@@ -14,11 +14,12 @@ internal sealed class CashMovementConfiguration : IEntityTypeConfiguration<CashM
             table.HasCheckConstraint(
                 "CK_CashMovements_TypeDirection",
                 "([MovementType] IN (1, 2, 3) AND [Amount] > 0) OR " +
-                "([MovementType] = 4 AND [Amount] < 0)");
+                "([MovementType] IN (4, 5) AND [Amount] < 0)");
             table.HasCheckConstraint(
                 "CK_CashMovements_SalePayment",
-                "([MovementType] = 2 AND [PaymentMethod] BETWEEN 1 AND 6 AND [SalePaymentId] IS NOT NULL) OR " +
-                "([MovementType] <> 2 AND [PaymentMethod] IS NULL AND [SalePaymentId] IS NULL)");
+                "([MovementType] = 2 AND [PaymentMethod] BETWEEN 1 AND 6 AND [SalePaymentId] IS NOT NULL AND [ReversedSalePaymentId] IS NULL) OR " +
+                "([MovementType] = 5 AND [PaymentMethod] BETWEEN 1 AND 6 AND [SalePaymentId] IS NULL AND [ReversedSalePaymentId] IS NOT NULL) OR " +
+                "([MovementType] NOT IN (2, 5) AND [PaymentMethod] IS NULL AND [SalePaymentId] IS NULL AND [ReversedSalePaymentId] IS NULL)");
             table.HasCheckConstraint(
                 "CK_CashMovements_Reference",
                 "([ReferenceType] IS NULL AND [ReferenceId] IS NULL) OR " +
@@ -38,6 +39,9 @@ internal sealed class CashMovementConfiguration : IEntityTypeConfiguration<CashM
         builder.HasIndex(movement => new { movement.CashSessionId, movement.OccurredAtUtc });
         builder.HasIndex(movement => movement.OperationId).IsUnique().HasFilter("[OperationId] IS NOT NULL");
         builder.HasIndex(movement => movement.SalePaymentId).IsUnique().HasFilter("[SalePaymentId] IS NOT NULL");
+        builder.HasIndex(movement => movement.ReversedSalePaymentId)
+            .IsUnique()
+            .HasFilter("[ReversedSalePaymentId] IS NOT NULL");
         builder.HasIndex(movement => new { movement.ReferenceType, movement.ReferenceId })
             .HasFilter("[ReferenceType] IS NOT NULL");
         builder.HasOne<ApplicationUser>()
@@ -47,6 +51,10 @@ internal sealed class CashMovementConfiguration : IEntityTypeConfiguration<CashM
         builder.HasOne(movement => movement.SalePayment)
             .WithOne()
             .HasForeignKey<CashMovement>(movement => movement.SalePaymentId)
+            .OnDelete(DeleteBehavior.Restrict);
+        builder.HasOne(movement => movement.ReversedSalePayment)
+            .WithOne()
+            .HasForeignKey<CashMovement>(movement => movement.ReversedSalePaymentId)
             .OnDelete(DeleteBehavior.Restrict);
     }
 }

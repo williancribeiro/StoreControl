@@ -91,6 +91,30 @@ public sealed class SalesController(ISaleService saleService) : ControllerBase
             : CreatedAtAction(nameof(Get), new { saleId = result.Sale.Id }, result);
     }
 
+    [HttpPost("{saleId:long}/cancellation")]
+    [Authorize(Policy = PermissionCodes.SalesManage)]
+    public async Task<ActionResult<CancelSaleResult>> Cancel(
+        long saleId,
+        CancelSaleRequest request,
+        [FromHeader(Name = "Idempotency-Key")] string? idempotencyKey,
+        CancellationToken cancellationToken)
+    {
+        if (!Guid.TryParse(idempotencyKey, out var operationId) || operationId == Guid.Empty)
+        {
+            throw new RequestValidationException(
+                "Idempotency-Key",
+                "Informe um UUID válido no cabeçalho Idempotency-Key.");
+        }
+
+        var result = await saleService.CancelAsync(
+            User.GetRequiredUserId(),
+            HttpContext.TraceIdentifier,
+            saleId,
+            new CancelSaleCommand(operationId, request.CashSessionId, request.RowVersion, request.Reason),
+            cancellationToken);
+        return Ok(result);
+    }
+
     private static PaymentMethod? ParsePaymentMethod(string? value)
     {
         if (string.IsNullOrWhiteSpace(value))
@@ -128,3 +152,8 @@ public sealed record FinalizeSalePaymentRequest(
     [Required, MaxLength(30)] string Method,
     [Range(typeof(decimal), "0.01", "999999999999.99", ParseLimitsInInvariantCulture = true)] decimal Amount,
     [MaxLength(100)] string? Reference);
+
+public sealed record CancelSaleRequest(
+    [Range(1, long.MaxValue)] long CashSessionId,
+    [Required] string RowVersion,
+    [Required, MaxLength(500)] string Reason);

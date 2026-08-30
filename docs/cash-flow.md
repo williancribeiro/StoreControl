@@ -12,6 +12,7 @@ Status: opening, operation, sale payments, manual entry/exit, close and history 
 - SalePayment: positive amount linked one-to-one to a sale payment;
 - CashIn: positive manual reinforcement;
 - CashOut: negative manual withdrawal.
+- SaleRefund: negative compensation linked one-to-one to the original sale payment.
 
 Manual rows require a reason, actor, correlation ID and client UUID. A withdrawal cannot make expected physical cash negative. Committed movement rows are never edited or deleted through the API.
 
@@ -22,6 +23,8 @@ Manual rows require a reason, actor, correlation ID and client UUID. A withdrawa
 ## Sale payment
 
 Sale payments are not posted through a standalone cash endpoint. `SaleService` adds them while it owns the sale transaction. Each `SalePayment` has exactly one `CashMovement`, enforced by a filtered unique FK index. Card, Pix, voucher and other methods remain in the ledger for reconciliation; only Cash changes `ExpectedCashAmount`.
+
+Sale cancellation writes refunds into an open session in the sale's store. Each original payment receives one negative `SaleRefund` row; only a Cash refund reduces physical expected cash. This leaves the original closed or open session untouched and creates an explicit audit trail in the session that actually paid the refund.
 
 ## Manual entry and exit
 
@@ -53,4 +56,4 @@ The same update lock used by sale finalization prevents a close from committing 
 
 ## Reconciliation
 
-For a session, validate physical cash using Opening + CashIn - CashOut + SalePayment where payment method is Cash. This signed sum must equal `ExpectedCashAmount`. All payment methods can be reconciled against sale payment rows using `CashMovements.SalePaymentId`; `ReferenceType=Sale` and the sale operation UUID provide a human-debuggable cross-module path.
+For a session, validate physical cash using Opening + CashIn - CashOut + Cash SalePayment - Cash SaleRefund. This signed sum must equal `ExpectedCashAmount`. All payment methods can be reconciled through original or reversed sale-payment links. `ReferenceType=Sale` / `SaleCancellation` and the corresponding operation UUID provide a human-debuggable cross-module path.

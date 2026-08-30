@@ -50,6 +50,14 @@ public sealed record SalePaymentSummary(
     decimal Amount,
     string? Reference);
 
+public sealed record SaleStatusHistorySummary(
+    long Id,
+    string Status,
+    Guid ChangedByUserId,
+    string ChangedByUserName,
+    DateTime ChangedAtUtc,
+    string Description);
+
 public sealed record SaleDetails(
     long Id,
     string Number,
@@ -67,11 +75,20 @@ public sealed record SaleDetails(
     string Status,
     DateTime CreatedAtUtc,
     DateTime FinalizedAtUtc,
+    Guid? CancellationOperationId,
+    long? CancellationCashSessionId,
+    string? CancellationCashRegisterCode,
+    Guid? CancelledByUserId,
+    string? CancelledByUserName,
+    DateTime? CancelledAtUtc,
+    string? CancellationReason,
+    string RowVersion,
     decimal Subtotal,
     decimal DiscountAmount,
     decimal TotalAmount,
     IReadOnlyCollection<SaleItemSummary> Items,
-    IReadOnlyCollection<SalePaymentSummary> Payments);
+    IReadOnlyCollection<SalePaymentSummary> Payments,
+    IReadOnlyCollection<SaleStatusHistorySummary> StatusHistory);
 
 public sealed record FinalizeSaleItemCommand(int ProductId, decimal Quantity);
 
@@ -88,6 +105,14 @@ public sealed record FinalizeSaleCommand(
 
 public sealed record FinalizeSaleResult(SaleDetails Sale, bool WasAlreadyProcessed);
 
+public sealed record CancelSaleCommand(
+    Guid OperationId,
+    long CashSessionId,
+    string RowVersion,
+    string Reason);
+
+public sealed record CancelSaleResult(SaleDetails Sale, bool WasAlreadyProcessed);
+
 public interface ISaleService
 {
     Task<PagedResult<SaleSummary>> ListAsync(
@@ -101,5 +126,12 @@ public interface ISaleService
         Guid userId,
         string correlationId,
         FinalizeSaleCommand command,
+        CancellationToken cancellationToken);
+
+    Task<CancelSaleResult> CancelAsync(
+        Guid userId,
+        string correlationId,
+        long saleId,
+        CancelSaleCommand command,
         CancellationToken cancellationToken);
 }

@@ -64,6 +64,31 @@ public sealed class CashSessionTests
             Guid.NewGuid(), CashMovementType.CashIn, 1m, "Tardia", UserId, "unit-test"));
     }
 
+    [Fact]
+    public void Sale_refund_reverses_only_the_physical_cash_payment()
+    {
+        var session = NewSession(100m);
+        var sale = NewFinalizedSale(
+            (PaymentMethod.Cash, 30m, (string?)null),
+            (PaymentMethod.Pix, 20m, "PIX-1"));
+        foreach (var payment in sale.Payments)
+        {
+            session.RecordSalePayment(payment, UserId, "unit-test", sale.OperationId);
+        }
+
+        var cancellationId = Guid.NewGuid();
+        foreach (var payment in sale.Payments)
+        {
+            session.RecordSaleRefund(payment, UserId, "unit-test", cancellationId);
+        }
+
+        Assert.Equal(100m, session.ExpectedCashAmount);
+        Assert.Equal(5, session.Movements.Count);
+        Assert.All(
+            session.Movements.Where(item => item.Type == CashMovementType.SaleRefund),
+            item => Assert.True(item.Amount < 0));
+    }
+
     private static CashSession NewSession(decimal openingAmount) =>
         new(Guid.NewGuid(), 1, UserId, openingAmount, "unit-test");
 

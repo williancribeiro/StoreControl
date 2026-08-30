@@ -19,7 +19,8 @@ public sealed class CashMovement
         string? referenceType,
         string? referenceId,
         Guid? operationId,
-        SalePayment? salePayment)
+        SalePayment? salePayment,
+        SalePayment? reversedSalePayment = null)
     {
         Session = session ?? throw new ArgumentNullException(nameof(session));
         if (!Enum.IsDefined(type))
@@ -27,8 +28,11 @@ public sealed class CashMovement
             throw new ArgumentOutOfRangeException(nameof(type), "O tipo de movimentação é inválido.");
         }
 
-        if ((type == CashMovementType.SalePayment) != paymentMethod.HasValue ||
-            (type == CashMovementType.SalePayment) != (salePayment is not null))
+        var isSalePayment = type == CashMovementType.SalePayment;
+        var isSaleRefund = type == CashMovementType.SaleRefund;
+        if ((isSalePayment || isSaleRefund) != paymentMethod.HasValue ||
+            isSalePayment != (salePayment is not null) ||
+            isSaleRefund != (reversedSalePayment is not null))
         {
             throw new ArgumentException(
                 "Forma de pagamento e pagamento de venda são obrigatórios somente para movimentos de venda.",
@@ -62,6 +66,7 @@ public sealed class CashMovement
 
         OperationId = operationId;
         SalePayment = salePayment;
+        ReversedSalePayment = reversedSalePayment;
         OccurredAtUtc = DateTime.UtcNow;
     }
 
@@ -95,6 +100,10 @@ public sealed class CashMovement
 
     public SalePayment? SalePayment { get; private set; }
 
+    public long? ReversedSalePaymentId { get; private set; }
+
+    public SalePayment? ReversedSalePayment { get; private set; }
+
     private static decimal NormalizeSignedAmount(CashMovementType type, decimal amount)
     {
         var normalized = decimal.Round(amount, 2, MidpointRounding.AwayFromZero);
@@ -105,7 +114,9 @@ public sealed class CashMovement
                 "O valor deve estar entre 0,01 e 999.999.999.999,99.");
         }
 
-        return type == CashMovementType.CashOut ? -normalized : normalized;
+        return type is CashMovementType.CashOut or CashMovementType.SaleRefund
+            ? -normalized
+            : normalized;
     }
 
     private static string NormalizeRequired(string value, int maximumLength, string parameterName)
