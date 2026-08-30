@@ -32,6 +32,12 @@ public sealed class StoreControlDbContext(DbContextOptions<StoreControlDbContext
 
     public DbSet<StockMovement> StockMovements => Set<StockMovement>();
 
+    public DbSet<StockTransfer> StockTransfers => Set<StockTransfer>();
+
+    public DbSet<StockTransferItem> StockTransferItems => Set<StockTransferItem>();
+
+    public DbSet<StockTransferStatusHistory> StockTransferStatusHistory => Set<StockTransferStatusHistory>();
+
     public DbSet<PurchaseOrder> PurchaseOrders => Set<PurchaseOrder>();
 
     public DbSet<PurchaseOrderItem> PurchaseOrderItems => Set<PurchaseOrderItem>();

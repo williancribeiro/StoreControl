@@ -105,6 +105,15 @@ Cash operation:
     → rowversion and locked session transaction
     → cash session + signed append-only movement
 
+Store transfer:
+
+    React transfer page
+    → inventory.read / inventory.manage policy and both-store scope
+    → StockTransfersController → IStockTransferService
+    → locked StockTransfer + StockBalance Domain rules
+    → one transaction per dispatch or receipt
+    → transfer status history + paired inventory ledger references
+
 Foundation smoke:
 
     Authenticated browser → React SmokePage → GET /api/smoke → EF Core → SQL Server

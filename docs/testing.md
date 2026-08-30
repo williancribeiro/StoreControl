@@ -53,6 +53,7 @@ Coverage currently includes:
 - opening/manual entry/manual exit/closing cash lifecycle and difference calculation;
 - sales/cash permission policies and store-scoped register visibility.
 - sale cancellation stock/cash restoration, exact idempotent replay, preserved history and rollback when a refund cannot be paid.
+- transfer creation without stock effect, dispatch/receipt pairing, pre-dispatch cancellation, idempotent transitions, both-store scope and concurrent last-unit dispatch.
 
 Set STORECONTROL_TEST_DB_CONNECTION to a SQL Server connection with create/drop database permission. The connection's database name is replaced with a safe unique test name. `scripts/Set-LocalEnvironment.ps1` prepares this value from the ignored local `.env`. GitHub Actions starts SQL Server with a newly generated masked password for each run rather than storing a working credential in the workflow.
 

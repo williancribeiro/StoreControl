@@ -1,6 +1,6 @@
 # Inventory flow
 
-Status: implemented for stock positions, manual adjustments and movement history.
+Status: implemented for stock positions, manual adjustments, movement history and store transfers.
 
 ## Model
 
@@ -74,7 +74,7 @@ With demonstration data enabled, DbMigrator creates one initial balance and one 
 
 Finalizing a sale calls the same `StockBalance.ApplyMovement` aggregate with `StockMovementType.Sale`. It writes one negative movement per product using `ReferenceType=Sale` and the sale operation UUID. Sale, payments, every balance update, every stock movement and every cash movement share one SQL transaction. Insufficient quantity or a concurrency conflict rolls all of them back. A sale cannot write quantity directly or omit its movement.
 
-Purchasing and sales call the same aggregate behavior inside their own transactions and record `PurchaseReceipt` or `Sale` business references. Transfers must follow that boundary in their later phase: provide a business reference, use paired movement types, and never update `QuantityOnHand` separately or call the manual adjustment HTTP endpoint internally.
+Purchasing, sales and transfers call the same aggregate behavior inside their own transactions. Transfer dispatch records `TransferOut` in the origin; later receipt records `TransferIn` in the destination. They use distinct operation UUID references, never update `QuantityOnHand` separately and never call the manual-adjustment HTTP endpoint internally. See [transfer-flow.md](transfer-flow.md).
 
 ## Debugging path
 

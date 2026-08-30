@@ -25,6 +25,9 @@ inventory:
 
 - StockBalances: composite product/store key, decimal(18,3) current and minimum quantities, timestamps and rowversion;
 - StockMovements: signed decimal(18,3) change, before/after balances, movement type, reason, responsible user, UTC occurrence, correlation and optional business reference.
+- StockTransfers: origin/destination, Created/InTransit/Received/Cancelled lifecycle, actor/operation metadata and rowversion;
+- StockTransferItems: historical product snapshots and decimal(18,3) quantities;
+- StockTransferStatusHistory: append-only lifecycle audit.
 
 purchasing:
 
@@ -65,6 +68,7 @@ Normalized e-mail and normalized username are protected by filtered unique index
 - 20260830144940_PurchasesAndReceiving: creates the purchasing schema, purchase aggregate/receipt/history tables, constraints, rowversion and receipt-reference uniqueness in the inventory ledger.
 - 20260830190812_SalesAndCash: creates sales/cash schemas, finalized sale/item/payment tables, register/session/signed-ledger tables, financial/lifecycle checks, restrictive relationships, rowversion and idempotency/concurrency indexes.
 - 20260830233557_SaleCancellation: adds sale rowversion/cancellation audit, status history, refund-session linkage and one-to-one signed payment reversals; existing finalized sales receive a history row.
+- 20260830234649_StockTransfers: adds transfer header/items/status history, lifecycle checks, restrictive relationships, rowversion and idempotency/query indexes.
 
 All migrations were validated from an empty database and in a generated idempotent SQL script.
 
@@ -76,7 +80,7 @@ DbMigrator seeds system roles, 22 permission definitions, default mappings, CENT
 
 Store, main-registration, purchase, sale, stock-balance and cash-session updates supply Base64 rowversion; stale updates return HTTP 409. Stock adjustments use an explicit ReadCommitted transaction inside the SQL retry execution strategy so the balance update and ledger insert commit together. Purchase receipt uses the same transaction strategy and locks the purchase root. Sale finalization locks the cash-session root and commits the sale, every balance/stock movement, payment and cash movement together; StockBalance rowversion protects contention across different registers. Cancellation locks sale and refund-session roots and commits status history, stock returns and payment refunds together. Cash manual/close operations use that same root lock. Refresh rotation also uses rowversion so two requests cannot successfully rotate the same token.
 
-Application validation improves error messages, but SQL unique indexes, foreign keys and check constraints remain the final integrity boundary. Inventory constraints reject negative balances, zero changes, invalid movement direction and inconsistent before/change/after arithmetic. Purchasing constraints protect status ranges, quantity bounds, received-at-most-ordered, line totals and required snapshots. Sales constraints protect finalized/cancelled lifecycle, cancellation metadata, financial equations, historical data and payment validity. Cash constraints protect lifecycle, signed direction, physical balances and original/refunded sale-payment linkage. Receipt/sale/cancellation UUIDs plus filtered business-reference indexes prevent committed stock effects from being applied twice.
+Application validation improves error messages, but SQL unique indexes, foreign keys and check constraints remain the final integrity boundary. Inventory constraints reject negative balances, zero changes, invalid movement direction, inconsistent before/change/after arithmetic and incomplete transfer lifecycle metadata. Purchasing constraints protect status ranges, quantity bounds, received-at-most-ordered, line totals and required snapshots. Sales constraints protect finalized/cancelled lifecycle, cancellation metadata, financial equations, historical data and payment validity. Cash constraints protect lifecycle, signed direction, physical balances and original/refunded sale-payment linkage. Receipt/sale/cancellation/transfer UUIDs plus filtered business-reference indexes prevent committed stock effects from being applied twice.
 
 ## Configuration
 

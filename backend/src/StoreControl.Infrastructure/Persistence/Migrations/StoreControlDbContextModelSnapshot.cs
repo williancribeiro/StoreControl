@@ -603,6 +603,206 @@ namespace StoreControl.Infrastructure.Persistence.Migrations
                         });
                 });
 
+            modelBuilder.Entity("StoreControl.Domain.Inventory.StockTransfer", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<Guid?>("CancellationOperationId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("CancellationReason")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<DateTime?>("CancelledAtUtc")
+                        .HasPrecision(3)
+                        .HasColumnType("datetime2(3)");
+
+                    b.Property<Guid?>("CancelledByUserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasPrecision(3)
+                        .HasColumnType("datetime2(3)");
+
+                    b.Property<Guid>("CreatedByUserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("DestinationStoreId")
+                        .HasColumnType("int");
+
+                    b.Property<Guid?>("DispatchOperationId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime?>("DispatchedAtUtc")
+                        .HasPrecision(3)
+                        .HasColumnType("datetime2(3)");
+
+                    b.Property<Guid?>("DispatchedByUserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Notes")
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<Guid>("OperationId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("OriginStoreId")
+                        .HasColumnType("int");
+
+                    b.Property<Guid?>("ReceiptOperationId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime?>("ReceivedAtUtc")
+                        .HasPrecision(3)
+                        .HasColumnType("datetime2(3)");
+
+                    b.Property<Guid?>("ReceivedByUserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CancellationOperationId")
+                        .IsUnique()
+                        .HasFilter("[CancellationOperationId] IS NOT NULL");
+
+                    b.HasIndex("CancelledByUserId");
+
+                    b.HasIndex("CreatedByUserId");
+
+                    b.HasIndex("DispatchOperationId")
+                        .IsUnique()
+                        .HasFilter("[DispatchOperationId] IS NOT NULL");
+
+                    b.HasIndex("DispatchedByUserId");
+
+                    b.HasIndex("OperationId")
+                        .IsUnique();
+
+                    b.HasIndex("ReceiptOperationId")
+                        .IsUnique()
+                        .HasFilter("[ReceiptOperationId] IS NOT NULL");
+
+                    b.HasIndex("ReceivedByUserId");
+
+                    b.HasIndex("DestinationStoreId", "CreatedAtUtc")
+                        .IsDescending(false, true);
+
+                    b.HasIndex("OriginStoreId", "CreatedAtUtc")
+                        .IsDescending(false, true);
+
+                    b.HasIndex("Status", "CreatedAtUtc")
+                        .IsDescending(false, true);
+
+                    b.ToTable("StockTransfers", "inventory", t =>
+                        {
+                            t.HasCheckConstraint("CK_StockTransfers_DifferentStores", "[OriginStoreId] <> [DestinationStoreId]");
+
+                            t.HasCheckConstraint("CK_StockTransfers_Lifecycle", "([Status] = 1 AND [DispatchOperationId] IS NULL AND [DispatchedByUserId] IS NULL AND [DispatchedAtUtc] IS NULL AND [ReceiptOperationId] IS NULL AND [ReceivedByUserId] IS NULL AND [ReceivedAtUtc] IS NULL AND [CancellationOperationId] IS NULL AND [CancelledByUserId] IS NULL AND [CancelledAtUtc] IS NULL AND [CancellationReason] IS NULL) OR ([Status] = 2 AND [DispatchOperationId] IS NOT NULL AND [DispatchedByUserId] IS NOT NULL AND [DispatchedAtUtc] IS NOT NULL AND [ReceiptOperationId] IS NULL AND [ReceivedByUserId] IS NULL AND [ReceivedAtUtc] IS NULL AND [CancellationOperationId] IS NULL AND [CancelledByUserId] IS NULL AND [CancelledAtUtc] IS NULL AND [CancellationReason] IS NULL) OR ([Status] = 3 AND [DispatchOperationId] IS NOT NULL AND [DispatchedByUserId] IS NOT NULL AND [DispatchedAtUtc] IS NOT NULL AND [ReceiptOperationId] IS NOT NULL AND [ReceivedByUserId] IS NOT NULL AND [ReceivedAtUtc] IS NOT NULL AND [CancellationOperationId] IS NULL AND [CancelledByUserId] IS NULL AND [CancelledAtUtc] IS NULL AND [CancellationReason] IS NULL) OR ([Status] = 4 AND [DispatchOperationId] IS NULL AND [DispatchedByUserId] IS NULL AND [DispatchedAtUtc] IS NULL AND [ReceiptOperationId] IS NULL AND [ReceivedByUserId] IS NULL AND [ReceivedAtUtc] IS NULL AND [CancellationOperationId] IS NOT NULL AND [CancelledByUserId] IS NOT NULL AND [CancelledAtUtc] IS NOT NULL AND LEN(LTRIM(RTRIM([CancellationReason]))) > 0)");
+
+                            t.HasCheckConstraint("CK_StockTransfers_Status", "[Status] BETWEEN 1 AND 4");
+                        });
+                });
+
+            modelBuilder.Entity("StoreControl.Domain.Inventory.StockTransferItem", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<string>("ProductCode")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<int>("ProductId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("ProductName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<decimal>("Quantity")
+                        .HasPrecision(18, 3)
+                        .HasColumnType("decimal(18,3)");
+
+                    b.Property<long>("StockTransferId")
+                        .HasColumnType("bigint");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ProductId");
+
+                    b.HasIndex("StockTransferId", "ProductId")
+                        .IsUnique();
+
+                    b.ToTable("StockTransferItems", "inventory", t =>
+                        {
+                            t.HasCheckConstraint("CK_StockTransferItems_ProductCode_NotBlank", "LEN(LTRIM(RTRIM([ProductCode]))) > 0");
+
+                            t.HasCheckConstraint("CK_StockTransferItems_ProductName_NotBlank", "LEN(LTRIM(RTRIM([ProductName]))) > 0");
+
+                            t.HasCheckConstraint("CK_StockTransferItems_Quantity_Positive", "[Quantity] > 0");
+                        });
+                });
+
+            modelBuilder.Entity("StoreControl.Domain.Inventory.StockTransferStatusHistory", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<DateTime>("ChangedAtUtc")
+                        .HasPrecision(3)
+                        .HasColumnType("datetime2(3)");
+
+                    b.Property<Guid>("ChangedByUserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("int");
+
+                    b.Property<long>("StockTransferId")
+                        .HasColumnType("bigint");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ChangedByUserId");
+
+                    b.HasIndex("StockTransferId", "ChangedAtUtc");
+
+                    b.ToTable("StockTransferStatusHistory", "inventory", t =>
+                        {
+                            t.HasCheckConstraint("CK_StockTransferStatusHistory_Description_NotBlank", "LEN(LTRIM(RTRIM([Description]))) > 0");
+
+                            t.HasCheckConstraint("CK_StockTransferStatusHistory_Status", "[Status] BETWEEN 1 AND 4");
+                        });
+                });
+
             modelBuilder.Entity("StoreControl.Domain.Parties.Customer", b =>
                 {
                     b.Property<int>("Id")
@@ -1684,6 +1884,80 @@ namespace StoreControl.Infrastructure.Persistence.Migrations
                     b.Navigation("Store");
                 });
 
+            modelBuilder.Entity("StoreControl.Domain.Inventory.StockTransfer", b =>
+                {
+                    b.HasOne("StoreControl.Infrastructure.Identity.ApplicationUser", null)
+                        .WithMany()
+                        .HasForeignKey("CancelledByUserId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("StoreControl.Infrastructure.Identity.ApplicationUser", null)
+                        .WithMany()
+                        .HasForeignKey("CreatedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("StoreControl.Domain.Stores.Store", "DestinationStore")
+                        .WithMany()
+                        .HasForeignKey("DestinationStoreId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("StoreControl.Infrastructure.Identity.ApplicationUser", null)
+                        .WithMany()
+                        .HasForeignKey("DispatchedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("StoreControl.Domain.Stores.Store", "OriginStore")
+                        .WithMany()
+                        .HasForeignKey("OriginStoreId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("StoreControl.Infrastructure.Identity.ApplicationUser", null)
+                        .WithMany()
+                        .HasForeignKey("ReceivedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("DestinationStore");
+
+                    b.Navigation("OriginStore");
+                });
+
+            modelBuilder.Entity("StoreControl.Domain.Inventory.StockTransferItem", b =>
+                {
+                    b.HasOne("StoreControl.Domain.Catalog.Product", null)
+                        .WithMany()
+                        .HasForeignKey("ProductId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("StoreControl.Domain.Inventory.StockTransfer", "Transfer")
+                        .WithMany("Items")
+                        .HasForeignKey("StockTransferId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Transfer");
+                });
+
+            modelBuilder.Entity("StoreControl.Domain.Inventory.StockTransferStatusHistory", b =>
+                {
+                    b.HasOne("StoreControl.Infrastructure.Identity.ApplicationUser", null)
+                        .WithMany()
+                        .HasForeignKey("ChangedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("StoreControl.Domain.Inventory.StockTransfer", "Transfer")
+                        .WithMany("StatusHistory")
+                        .HasForeignKey("StockTransferId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Transfer");
+                });
+
             modelBuilder.Entity("StoreControl.Domain.Purchasing.PurchaseOrder", b =>
                 {
                     b.HasOne("StoreControl.Infrastructure.Identity.ApplicationUser", null)
@@ -1943,6 +2217,13 @@ namespace StoreControl.Infrastructure.Persistence.Migrations
             modelBuilder.Entity("StoreControl.Domain.Cash.CashSession", b =>
                 {
                     b.Navigation("Movements");
+                });
+
+            modelBuilder.Entity("StoreControl.Domain.Inventory.StockTransfer", b =>
+                {
+                    b.Navigation("Items");
+
+                    b.Navigation("StatusHistory");
                 });
 
             modelBuilder.Entity("StoreControl.Domain.Purchasing.PurchaseOrder", b =>

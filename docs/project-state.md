@@ -4,7 +4,7 @@ Last updated: 2026-08-30.
 
 ## Current phase
 
-The commercial core now includes transactional finalized sales, split payments, cash operation and audited cancellation/reversal. Store transfers are the active next delivery.
+The commercial core includes transactional sales/cancellation and cash. The transfer backend, SQL model and real-SQL validation are complete; its React screens are the active next delivery.
 
 ## Implemented
 
@@ -54,6 +54,17 @@ Inventory:
 - Domain and real-SQL tests for money/quantity precision, rollback, authorization, store scope, constraints and concurrent exits;
 - inventory, architecture, database, API, testing and project-state documentation.
 
+Transfers:
+
+- persisted Created, InTransit, Received and Cancelled lifecycle with append-only status history;
+- creation without stock effect, transactional origin dispatch and transactional destination receipt;
+- paired `TransferOut` / `TransferIn` ledger movements with separate idempotency keys;
+- transfer-root update lock plus StockBalance rowversion for concurrent last-unit protection;
+- SQL lifecycle, distinct-store, quantity and reference constraints;
+- backend permission enforcement requiring access to both stores;
+- REST list/details/create/dispatch/receive/cancel APIs with pagination, search and filters;
+- Domain and real-SQL tests for lifecycle, no-effect creation, pairing, replay, cancellation, concurrency and scope.
+
 Purchasing:
 
 - PurchaseOrder aggregate with historical product code/name, ordered/received quantities, decimal unit cost/line totals, receipts and append-only status history;
@@ -90,7 +101,7 @@ Sales and cash:
 
 ## Pending modules
 
-Transfers, reporting, Redis cache integration, RabbitMQ producer/consumer integration and business Worker workloads.
+Transfer React screens, reporting, Redis cache integration, RabbitMQ producer/consumer integration and business Worker workloads.
 
 MFA, external identity providers, password-recovery e-mail and self-registration remain outside the current phase.
 
@@ -103,8 +114,9 @@ MFA, external identity providers, password-recovery e-mail and self-registration
 - 20260830144940_PurchasesAndReceiving: purchasing aggregate, receipt/history tables, rowversion, checks, indexes and idempotent inventory-reference uniqueness.
 - 20260830190812_SalesAndCash: sales/cash schemas, finalized sale/item/payment rows, registers/sessions/signed ledger, rowversion, checks, restrictive relationships and idempotency/concurrency indexes.
 - 20260830233557_SaleCancellation: sale cancellation metadata/history/rowversion, refund-session references and signed one-to-one payment reversals.
+- 20260830234649_StockTransfers: transfer header/items/status history, lifecycle checks, rowversion, restrictive FKs and operation indexes.
 
-All seven migrations execute from an empty SQL Server database in integration tests. EF reports no pending model changes.
+All eight migrations execute from an empty SQL Server database in integration tests. EF reports no pending model changes.
 
 ## Seed data
 
@@ -140,10 +152,10 @@ This phase adds only the four sales/cash policies; JWT and refresh-token semanti
 
 ## Tests
 
-70 tests pass:
+78 tests pass:
 
-- 39 unit tests for architecture boundaries, Store, Category, Product, party, stock, purchase, sale and cash invariants, validation, money/quantity rounding and lifecycle rules;
-- 31 integration tests against real SQL Server for migrations/from-zero execution, Identity/JWT/refresh/security behavior, registrations, inventory, purchase, sale/cancellation and cash atomicity/idempotency/authorization/store scope/SQL constraints.
+- 43 unit tests for architecture boundaries, Store, Category, Product, party, stock, transfer, purchase, sale and cash invariants, validation, money/quantity rounding and lifecycle rules;
+- 35 integration tests against real SQL Server for migrations/from-zero execution, Identity/JWT/refresh/security behavior, registrations, inventory/transfers, purchase, sale/cancellation and cash atomicity/idempotency/authorization/store scope/SQL constraints.
 
 Integration tests create uniquely prefixed temporary databases and verify the prefix before deletion. GitHub Actions starts an ephemeral SQL Server Developer container for this suite.
 
@@ -171,6 +183,7 @@ Integration tests create uniquely prefixed temporary databases and verify the pr
 - all sale prices/totals are calculated from server-loaded catalog data; frontend totals never establish integrity;
 - all payment forms enter the cash ledger, while only Cash changes expected physical cash;
 - cancelling a sale preserves the original document and adds status history, paired stock returns and signed cash/payment refunds in the current open store session;
+- transfers require access to both stores; creation has no stock effect, dispatch removes origin stock and receipt adds destination stock in separate audited transactions;
 - cost permits four decimal places; sale price permits two; Domain rounding uses AwayFromZero and SQL precision matches;
 - no cache was added because these administration queries are indexed, inexpensive and require fresh reads;
 - no stored procedure or view was introduced without a concrete query benefit;
@@ -186,7 +199,7 @@ Canonical commands and local demo setup are in the root README.md. Backend integ
 
 ## Known limitations
 
-- stock transfers are still pending;
+- transfer backend is complete, while its React screens are pending this phase's final delivery;
 - customer/supplier documents validate normalized length, not Brazilian CPF/CNPJ check digits;
 - codes are unique within each resource, not globally across every resource;
 - frontend has compiler/lint/build gates, but no committed component or browser E2E suite exists yet; purchase/sale/cash integration is covered at the HTTP/SQL boundary, supplemented by documented manual browser checks when the local runtime is available;
@@ -202,7 +215,7 @@ Validated on Windows on 2026-08-30 with .NET 10, Node/npm and local SQL Server E
 - dotnet restore StoreControl.sln: passed;
 - dotnet format StoreControl.sln --verify-no-changes --no-restore: passed after normalizing EF-generated line endings;
 - dotnet build StoreControl.sln --no-restore: passed with zero warnings and zero errors;
-- dotnet test StoreControl.sln --no-build against `Server=.\SQLEXPRESS` with integrated authentication: 70 passed, 0 failed (39 unit and 31 integration);
+- dotnet test StoreControl.sln --no-build against `Server=.\SQLEXPRESS` with integrated authentication: 78 passed, 0 failed (43 unit and 35 integration);
 - migration discovery and execution from an empty database, including SalesAndCash: passed in every integration-test fixture;
 - `dotnet ef migrations has-pending-model-changes`: passed with no model drift;
 - idempotent migration SQL script generation: passed;
@@ -212,6 +225,7 @@ Validated on Windows on 2026-08-30 with .NET 10, Node/npm and local SQL Server E
 - real-SQL sale tests: normal multi-item/multi-payment commit, exact idempotent replay, insufficient-stock rollback, simultaneous last-item contention, forced cross-module rollback, permission and store scope all passed;
 - real-SQL cash tests: idempotent open, signed entry/exit, physical expected balance, close/difference and complete ledger passed;
 - real-SQL cancellation tests: status/history preservation, exact replay, stock restoration, signed refund and cross-module rollback passed;
+- real-SQL transfer tests: no-effect creation, dispatch/receipt pairing, replay, pre-dispatch cancellation, both-store authorization and last-unit contention passed;
 - all existing authentication, registration, inventory and purchasing suites remained green;
 - npm ci: passed with 0 reported vulnerabilities;
 - npm run typecheck: passed;

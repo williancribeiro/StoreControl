@@ -53,6 +53,12 @@ POST returns 201 with the created representation. PUT returns the updated repres
 - GET /api/inventory/movements: `inventory.read`; page/pageSize, search, storeId, productId, type, fromUtc, toUtc and sorting;
 - GET /api/inventory/movements/{movementId}: `inventory.read` and store scope;
 - POST /api/inventory/adjustments: `inventory.manage`; storeId, productId, positive/negative direction, decimal quantity, required reason and current rowVersion.
+- GET /api/inventory/transfers: `inventory.read`; pagination, search, origin/destination/status/date filters and sorting;
+- GET /api/inventory/transfers/{stockTransferId}: `inventory.read`; historical items, actors, lifecycle and rowVersion;
+- POST /api/inventory/transfers: `inventory.manage`; UUID `Idempotency-Key`, distinct accessible stores and 1–100 product quantities; no stock change;
+- POST /api/inventory/transfers/{stockTransferId}/dispatch: `inventory.manage`; UUID `Idempotency-Key` and current rowVersion; writes origin exits;
+- POST /api/inventory/transfers/{stockTransferId}/receive: `inventory.manage`; UUID `Idempotency-Key` and current rowVersion; writes destination entries;
+- POST /api/inventory/transfers/{stockTransferId}/cancel: `inventory.manage`; UUID `Idempotency-Key`, current rowVersion and reason; Created only.
 
 Successful adjustment creation returns 201 with both updated position and movement. Insufficient stock, stale rowversion and concurrent aggregate creation return 409. Store scope is always enforced on the server.
 
