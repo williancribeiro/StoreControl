@@ -4,7 +4,7 @@ import { NavLink } from 'react-router-dom'
 import { getProblemMessage } from '../../shared/api/problemDetails'
 import { paymentMethodLabels } from '../sales/salesTypes'
 import { addCashMovement, closeCashSession, getCurrentCashSession, listCashRegisters, openCashSession } from './cashService'
-import type { CashRegister, CashSessionDetails } from './cashTypes'
+import { cashMovementLabels, type CashRegister, type CashSessionDetails } from './cashTypes'
 
 type OpenForm = { openingAmount: number }
 type MovementForm = { type: 'CashIn' | 'CashOut'; amount: number; reason: string }
@@ -170,5 +170,5 @@ export function CashOperationPage() {
 }
 
 function movementTypeLabel(type: string) {
-  return ({ Opening: 'Abertura', SalePayment: 'Venda', CashIn: 'Entrada', CashOut: 'Saída' } as Record<string, string>)[type] ?? type
+  return cashMovementLabels[type as keyof typeof cashMovementLabels] ?? type
 }

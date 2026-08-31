@@ -14,8 +14,8 @@ Cash uses sessions plus an append-only signed movement ledger. All sale payment 
 
 ## Consequences
 
-- committed sale rows are complete and immutable in this phase;
+- committed sale values remain immutable; later cancellation adds audit metadata and compensating ledgers without rewriting item/payment history;
 - the modular monolith and single database provide a real atomic transaction without distributed coordination;
 - one open session per register and restrictive FKs/checks make SQL Server an integrity boundary;
-- cancellation must later be a separately designed reversal, not deletion or mutation of historical values;
+- cancellation is implemented by the follow-up reversal decision in ADR 0004, not deletion or mutation of historical values;
 - a long sale serializes close and other sales for its cash session, an acceptable tradeoff for the current local laboratory and volume.

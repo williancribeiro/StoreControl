@@ -4,7 +4,7 @@ StoreControl é um laboratório de estudos que simula um sistema empresarial de 
 
 ## Estado atual
 
-A fundação, segurança, lojas, cadastros, estoque por produto/loja, compras/recebimentos, vendas/pagamentos e caixa estão implementados. Cancelamento de venda, transferências, relatórios, cache e mensageria de negócio permanecem pendentes. O estado verificável está em [docs/project-state.md](docs/project-state.md).
+A fundação, segurança, lojas, cadastros, estoque por produto/loja, compras/recebimentos, vendas/pagamentos, cancelamento auditado, caixa e transferências entre lojas estão implementados. Relatórios, cache e mensageria de negócio permanecem pendentes. O estado verificável está em [docs/project-state.md](docs/project-state.md).
 
 ## Stack ativa
 
@@ -114,6 +114,7 @@ Para gerar um script idempotente:
 - [docs/authentication.md](docs/authentication.md): autenticação, sessão e autorização;
 - [docs/master-data.md](docs/master-data.md): categorias, produtos, clientes e fornecedores;
 - [docs/inventory-flow.md](docs/inventory-flow.md): posição, movimentações, ajustes e concorrência;
+- [docs/transfer-flow.md](docs/transfer-flow.md): criação, expedição, trânsito, recebimento e concorrência;
 - [docs/purchase-flow.md](docs/purchase-flow.md): pedidos, recebimento, idempotência e integração com estoque;
 - [docs/sales-flow.md](docs/sales-flow.md): venda, pagamentos, transação, concorrência e idempotência;
 - [docs/cash-flow.md](docs/cash-flow.md): abertura, ledger, movimentações e fechamento;

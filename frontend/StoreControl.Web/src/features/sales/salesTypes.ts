@@ -15,7 +15,7 @@ export type SaleSummary = {
   createdByUserId: string
   createdByUserName: string
   cashSessionId: number
-  status: 'Finalized'
+  status: 'Finalized' | 'Cancelled'
   itemCount: number
   subtotal: number
   discountAmount: number
@@ -26,6 +26,14 @@ export type SaleSummary = {
 export type SaleDetails = SaleSummary & {
   cashRegisterCode: string
   createdAtUtc: string
+  cancellationOperationId: string | null
+  cancellationCashSessionId: number | null
+  cancellationCashRegisterCode: string | null
+  cancelledByUserId: string | null
+  cancelledByUserName: string | null
+  cancelledAtUtc: string | null
+  cancellationReason: string | null
+  rowVersion: string
   items: Array<{
     id: number
     productId: number
@@ -40,6 +48,14 @@ export type SaleDetails = SaleSummary & {
     method: PaymentMethod
     amount: number
     reference: string | null
+  }>
+  statusHistory: Array<{
+    id: number
+    status: 'Finalized' | 'Cancelled'
+    changedByUserId: string
+    changedByUserName: string
+    changedAtUtc: string
+    description: string
   }>
 }
 
@@ -66,6 +82,17 @@ export type FinalizeSaleInput = {
 }
 
 export type FinalizeSaleResult = {
+  sale: SaleDetails
+  wasAlreadyProcessed: boolean
+}
+
+export type CancelSaleInput = {
+  cashSessionId: number
+  rowVersion: string
+  reason: string
+}
+
+export type CancelSaleResult = {
   sale: SaleDetails
   wasAlreadyProcessed: boolean
 }

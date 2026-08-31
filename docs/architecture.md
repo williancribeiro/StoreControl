@@ -153,6 +153,7 @@ Current schemas:
 - [ADR 0001](adr/0001-modular-monolith-and-single-dbcontext.md): modular monolith and one DbContext;
 - [ADR 0002](adr/0002-jwt-refresh-and-store-scoped-roles.md): JWT, refresh rotation and store-scoped roles.
 - [ADR 0003](adr/0003-transactional-sale-and-cash-ledger.md): transactional finalized sales and signed cash ledger.
+- [ADR 0004](adr/0004-audited-reversals-and-two-stage-transfers.md): audited sale reversals and two-stage store transfers.
 
 Redis and RabbitMQ remain provisioned but unused until a concrete cache or asynchronous workflow exists.
 Local security boundaries and production gaps are documented in [security.md](security.md).

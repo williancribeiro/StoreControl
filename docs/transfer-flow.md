@@ -1,6 +1,6 @@
 # Stock transfer flow
 
-Status: backend implemented; frontend delivery follows in the same project phase.
+Status: backend and frontend implemented.
 
 ## Model and lifecycle
 
@@ -46,3 +46,5 @@ The backend requires access to both origin and destination on every list, detail
 - `POST /api/inventory/transfers/{id}/cancel`: cancel a Created transfer.
 
 Movement references use `StockTransferDispatch` or `StockTransferReceipt` plus the transition UUID. For debugging, start at transfer history, follow its operation UUID into `inventory.StockMovements`, and compare each before/change/after quantity with the current balance.
+
+The React area provides paginated history, filters, a product-selection editor and a lifecycle detail page. Each transition keeps its UUID after an uncertain error, displays server Problem Details and replaces its local rowversion only after a confirmed response.

@@ -63,6 +63,21 @@ public sealed class StockTransferTests
         Assert.Throws<InvalidOperationException>(() => transfer.Dispatch(Guid.NewGuid(), UserId));
     }
 
+    [Fact]
+    public void Invalid_transition_arguments_do_not_partially_mutate_transfer()
+    {
+        var transfer = NewTransfer();
+        transfer.AddItem(10, "PRD-010", "Café", 1m);
+
+        Assert.Throws<ArgumentException>(() => transfer.Dispatch(Guid.NewGuid(), Guid.Empty));
+        Assert.Equal(StockTransferStatus.Created, transfer.Status);
+        Assert.Null(transfer.DispatchOperationId);
+
+        Assert.Throws<ArgumentException>(() => transfer.Cancel(Guid.NewGuid(), UserId, " "));
+        Assert.Equal(StockTransferStatus.Created, transfer.Status);
+        Assert.Null(transfer.CancellationOperationId);
+    }
+
     private static StockTransfer NewTransfer() =>
         new(Guid.NewGuid(), 1, 2, UserId, "Reposição da filial.");
 }

@@ -97,5 +97,19 @@ public sealed class SaleTests
             sale.Cancel(Guid.NewGuid(), 1, Guid.NewGuid(), "Segundo cancelamento."));
     }
 
+    [Fact]
+    public void Invalid_cancellation_does_not_partially_mutate_the_sale()
+    {
+        var sale = NewSale();
+        sale.AddItem(10, "PRD-010", "Café", 1m, 10m);
+        sale.FinalizeSale(0m, [(PaymentMethod.Cash, 10m, (string?)null)]);
+
+        Assert.Throws<ArgumentException>(() => sale.Cancel(Guid.NewGuid(), 1, Guid.NewGuid(), " "));
+
+        Assert.Equal(SaleStatus.Finalized, sale.Status);
+        Assert.Null(sale.CancellationOperationId);
+        Assert.Null(sale.CancelledByUserId);
+    }
+
     private static Sale NewSale() => new(Guid.NewGuid(), 1, 1, null, Guid.NewGuid());
 }

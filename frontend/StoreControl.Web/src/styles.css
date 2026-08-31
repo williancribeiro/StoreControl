@@ -1122,6 +1122,52 @@ td {
   background: #f6dedb;
 }
 
+.status-pill.transfer-created {
+  color: #4d5c55;
+  background: #e7ece8;
+}
+
+.status-pill.transfer-intransit {
+  color: #75581f;
+  background: #f6eacb;
+}
+
+.status-pill.transfer-received {
+  color: #24613a;
+  background: #dff1e4;
+}
+
+.status-pill.transfer-cancelled {
+  color: #84342e;
+  background: #f6dedb;
+}
+
+.transfer-filters {
+  grid-template-columns: minmax(190px, 1.3fr) repeat(4, minmax(135px, 0.75fr)) auto;
+}
+
+.transfer-cancel-form,
+.sale-cancellation-panel form {
+  display: grid;
+  gap: 12px;
+}
+
+.transfer-cancel-form {
+  padding-top: 12px;
+  border-top: 1px solid #e2e8e3;
+}
+
+.sale-cancellation-panel {
+  display: grid;
+  gap: 10px;
+}
+
+.muted-text {
+  margin: 0;
+  color: #66776d;
+  font-size: 0.86rem;
+}
+
 .purchase-details-layout {
   display: grid;
   max-width: 1480px;

@@ -99,8 +99,10 @@ public sealed class StockTransfer
     {
         EnsureStatus(StockTransferStatus.Created);
         EnsureHasItems();
-        DispatchOperationId = ValidateOperationId(operationId, nameof(operationId));
-        DispatchedByUserId = ValidateUser(userId, nameof(userId));
+        var validOperationId = ValidateOperationId(operationId, nameof(operationId));
+        var validUserId = ValidateUser(userId, nameof(userId));
+        DispatchOperationId = validOperationId;
+        DispatchedByUserId = validUserId;
         DispatchedAtUtc = DateTime.UtcNow;
         Status = StockTransferStatus.InTransit;
         _statusHistory.Add(new StockTransferStatusHistory(
@@ -114,8 +116,10 @@ public sealed class StockTransfer
     public void Receive(Guid operationId, Guid userId)
     {
         EnsureStatus(StockTransferStatus.InTransit);
-        ReceiptOperationId = ValidateOperationId(operationId, nameof(operationId));
-        ReceivedByUserId = ValidateUser(userId, nameof(userId));
+        var validOperationId = ValidateOperationId(operationId, nameof(operationId));
+        var validUserId = ValidateUser(userId, nameof(userId));
+        ReceiptOperationId = validOperationId;
+        ReceivedByUserId = validUserId;
         ReceivedAtUtc = DateTime.UtcNow;
         Status = StockTransferStatus.Received;
         _statusHistory.Add(new StockTransferStatusHistory(
@@ -129,9 +133,12 @@ public sealed class StockTransfer
     public void Cancel(Guid operationId, Guid userId, string reason)
     {
         EnsureStatus(StockTransferStatus.Created);
-        CancellationOperationId = ValidateOperationId(operationId, nameof(operationId));
-        CancelledByUserId = ValidateUser(userId, nameof(userId));
-        CancellationReason = NormalizeRequired(reason, 500, nameof(reason));
+        var validOperationId = ValidateOperationId(operationId, nameof(operationId));
+        var validUserId = ValidateUser(userId, nameof(userId));
+        var validReason = NormalizeRequired(reason, 500, nameof(reason));
+        CancellationOperationId = validOperationId;
+        CancelledByUserId = validUserId;
+        CancellationReason = validReason;
         CancelledAtUtc = DateTime.UtcNow;
         Status = StockTransferStatus.Cancelled;
         _statusHistory.Add(new StockTransferStatusHistory(

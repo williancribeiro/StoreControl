@@ -15,7 +15,7 @@ export type CashSessionStatus = 'Open' | 'Closed'
 
 export type CashMovement = {
   id: number
-  type: 'Opening' | 'SalePayment' | 'CashIn' | 'CashOut'
+  type: 'Opening' | 'SalePayment' | 'CashIn' | 'CashOut' | 'SaleRefund'
   paymentMethod: PaymentMethod | null
   amount: number
   reason: string
@@ -70,3 +70,11 @@ export type CashSessionQuery = {
 }
 
 export type PagedCashSessions = PagedResult<CashSessionSummary>
+
+export const cashMovementLabels: Record<CashMovement['type'], string> = {
+  Opening: 'Abertura',
+  SalePayment: 'Venda',
+  CashIn: 'Entrada',
+  CashOut: 'Saída',
+  SaleRefund: 'Estorno de venda',
+}

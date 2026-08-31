@@ -115,6 +115,28 @@ For a 400, inspect cash-session/store matching, active customer/products, discou
 
 To trace a committed sale, start with `sales.Sales.OperationId`. It must match one stock movement reference per distinct product and one cash movement per payment. Reconcile historical item subtotals to the sale subtotal, payment sum to total, and only Cash payment movements to the change in physical `ExpectedCashAmount`. A failed sale must leave no sale row and no new movement under that operation UUID.
 
+## Sale cancellation
+
+    Browser SaleDetailsPage
+    → POST cancellation + rowVersion + Idempotency-Key
+    → SaleService locks sale and refund cash session
+    → Sale.Cancel + StockBalance SaleReversal + CashSession SaleRefund
+    → sales history + inventory ledger + cash ledger in one transaction
+
+Start with `Sales.CancellationOperationId`. The same UUID must appear once per product under `StockMovements.ReferenceType=SaleCancellation` and once per original payment under `CashMovements.ReferenceType=SaleCancellation`. Each refund links to `ReversedSalePaymentId`; only Cash reduces expected physical money. If cancellation returns 409, inspect sale rowversion/status, refund-session lifecycle and expected cash before assuming an inventory error.
+
+## Store transfer
+
+    Browser transfer page
+    → transferService Axios + rowVersion / Idempotency-Key
+    → inventory policy + both-store scope
+    → StockTransfersController
+    → StockTransferService locks transfer root
+    → StockTransfer + StockBalance Domain rules
+    → transfer history + inventory balance/movement transaction
+
+Creation must not have a stock reference. Dispatch uses `StockTransferDispatch` plus `DispatchOperationId` in the origin; receipt uses `StockTransferReceipt` plus `ReceiptOperationId` in the destination. For goods in transit, the origin exit exists while the destination entry does not yet exist. A 409 can indicate stale transfer state, insufficient origin stock or StockBalance contention; all three leave the transition and its movements rolled back.
+
 ## Cash operation
 
     Browser CashOperationPage

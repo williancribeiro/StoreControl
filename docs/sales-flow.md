@@ -64,7 +64,7 @@ The tested result is one sale, one sale stock movement and zero remaining quanti
 - `GET /api/sales/{saleId}` returns historical items, payments, user, store, customer and cash register;
 - `/sales/new` is the PDV-style cart and settlement screen;
 - `/sales` is the paginated history;
-- `/sales/:saleId` is the immutable detail view.
+- `/sales/:saleId` preserves historical values and exposes cancellation/audit actions when authorized.
 
 `sales.read` and `sales.manage` policies are enforced by the API. Current defaults grant both to Administrador, Gerente and Vendedor; Estoquista has neither. Non-administrators remain limited to assigned stores.
 

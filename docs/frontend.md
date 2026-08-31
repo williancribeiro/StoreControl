@@ -25,7 +25,8 @@ StoreControl.Web is a separate React, TypeScript and Vite application. React Rou
     │   │   ├── StockPositionsPage
     │   │   ├── StockMovementsPage
     │   │   ├── StockAdjustmentsPage
-    │   │   └── inventory service/types
+    │   │   ├── StockTransfersPage / NewStockTransferPage / StockTransferDetailsPage
+    │   │   └── inventory and transfer services/types
     │   ├── purchasing/
     │   │   ├── NewPurchasePage
     │   │   ├── PurchasesPage
@@ -68,6 +69,9 @@ No browser storage contains tokens. Full page reloads therefore require refresh,
 - /inventory/positions;
 - /inventory/movements;
 - /inventory/adjustments;
+- /inventory/transfers;
+- /inventory/transfers/new;
+- /inventory/transfers/:stockTransferId;
 - /purchases/new;
 - /purchases;
 - /purchases/:purchaseId;
@@ -102,8 +106,13 @@ ProtectedRoute handles authentication and PermissionRoute handles feature visibi
 - receipt retry reuses its client UUID until confirmed so an uncertain HTTP result does not duplicate stock.
 - PDV-style new sale with store/register context, open-session feedback, product search, editable cart quantities, optional customer, discount, split payment methods, total reconciliation and transactional error feedback;
 - sale history/detail with historical item prices and payment split;
+- sale detail with cancellation reason, open refund-session selection, retained idempotency key and status audit;
 - current cash operation with opening, live signed ledger, manual entry/exit and physical close;
 - cash session history/detail with expected/declared amount and difference;
 - sale finalization retains one UUID across uncertain retries, while the server remains authoritative for price, stock, money and authorization.
+- transfer history with origin/destination/status filters, creation cart and detail lifecycle actions;
+- transfer create/dispatch/receive/cancel operations retain one UUID each across uncertain retries and expose rowversion conflicts without automatic overwrite;
+
+The three transfer routes are loaded lazily so the operational screens do not inflate the main application bundle.
 
 Vite proxies /api and /health to localhost:5090. Docker Nginx proxies the same paths to the API container, so cookies remain same-origin.

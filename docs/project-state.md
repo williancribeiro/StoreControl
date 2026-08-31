@@ -4,7 +4,7 @@ Last updated: 2026-08-30.
 
 ## Current phase
 
-The commercial core includes transactional sales/cancellation and cash. The transfer backend, SQL model and real-SQL validation are complete; its React screens are the active next delivery.
+Prompt 7 is complete: sale cancellation and the full store-transfer flow are implemented across backend, frontend, SQL, tests and documentation.
 
 ## Implemented
 
@@ -63,6 +63,7 @@ Transfers:
 - SQL lifecycle, distinct-store, quantity and reference constraints;
 - backend permission enforcement requiring access to both stores;
 - REST list/details/create/dispatch/receive/cancel APIs with pagination, search and filters;
+- React history, new-transfer and detail/action screens with lazy routes and retained idempotency keys;
 - Domain and real-SQL tests for lifecycle, no-effect creation, pairing, replay, cancellation, concurrency and scope.
 
 Purchasing:
@@ -101,7 +102,7 @@ Sales and cash:
 
 ## Pending modules
 
-Transfer React screens, reporting, Redis cache integration, RabbitMQ producer/consumer integration and business Worker workloads.
+Reporting, Redis cache integration, RabbitMQ producer/consumer integration and business Worker workloads.
 
 MFA, external identity providers, password-recovery e-mail and self-registration remain outside the current phase.
 
@@ -152,16 +153,16 @@ This phase adds only the four sales/cash policies; JWT and refresh-token semanti
 
 ## Tests
 
-78 tests pass:
+80 tests pass:
 
-- 43 unit tests for architecture boundaries, Store, Category, Product, party, stock, transfer, purchase, sale and cash invariants, validation, money/quantity rounding and lifecycle rules;
+- 45 unit tests for architecture boundaries, Store, Category, Product, party, stock, transfer, purchase, sale and cash invariants, validation, money/quantity rounding and lifecycle rules;
 - 35 integration tests against real SQL Server for migrations/from-zero execution, Identity/JWT/refresh/security behavior, registrations, inventory/transfers, purchase, sale/cancellation and cash atomicity/idempotency/authorization/store scope/SQL constraints.
 
 Integration tests create uniquely prefixed temporary databases and verify the prefix before deletion. GitHub Actions starts an ephemeral SQL Server Developer container for this suite.
 
 ## Required services
 
-- SQL Server is required for DbMigrator, API readiness, authentication, registration/inventory/purchase/sale/cash persistence and integration tests;
+- SQL Server is required for DbMigrator, API readiness, authentication, registration/inventory/transfer/purchase/sale/cash persistence and integration tests;
 - Redis and RabbitMQ remain provisioned but unused by code;
 - Worker still has no business background workload;
 - frontend development expects API on localhost:5090 through the Vite proxy.
@@ -191,7 +192,7 @@ Integration tests create uniquely prefixed temporary databases and verify the pr
 - tracked examples contain no working local secrets; `scripts/Initialize-LocalEnvironment.ps1` creates the ignored `.env`, while `scripts/Set-LocalEnvironment.ps1` prepares host-development variables without printing them;
 - Compose is explicitly local-only and is not a production deployment template; see [security.md](security.md).
 
-See [sales-flow.md](sales-flow.md), [cash-flow.md](cash-flow.md), [purchase-flow.md](purchase-flow.md), [inventory-flow.md](inventory-flow.md), [authentication.md](authentication.md) and [architecture.md](architecture.md).
+See [sales-flow.md](sales-flow.md), [cash-flow.md](cash-flow.md), [transfer-flow.md](transfer-flow.md), [purchase-flow.md](purchase-flow.md), [inventory-flow.md](inventory-flow.md), [authentication.md](authentication.md) and [architecture.md](architecture.md).
 
 ## Commands
 
@@ -199,7 +200,6 @@ Canonical commands and local demo setup are in the root README.md. Backend integ
 
 ## Known limitations
 
-- transfer backend is complete, while its React screens are pending this phase's final delivery;
 - customer/supplier documents validate normalized length, not Brazilian CPF/CNPJ check digits;
 - codes are unique within each resource, not globally across every resource;
 - frontend has compiler/lint/build gates, but no committed component or browser E2E suite exists yet; purchase/sale/cash integration is covered at the HTTP/SQL boundary, supplemented by documented manual browser checks when the local runtime is available;
@@ -215,11 +215,11 @@ Validated on Windows on 2026-08-30 with .NET 10, Node/npm and local SQL Server E
 - dotnet restore StoreControl.sln: passed;
 - dotnet format StoreControl.sln --verify-no-changes --no-restore: passed after normalizing EF-generated line endings;
 - dotnet build StoreControl.sln --no-restore: passed with zero warnings and zero errors;
-- dotnet test StoreControl.sln --no-build against `Server=.\SQLEXPRESS` with integrated authentication: 78 passed, 0 failed (43 unit and 35 integration);
-- migration discovery and execution from an empty database, including SalesAndCash: passed in every integration-test fixture;
+- dotnet test StoreControl.sln --no-build against `Server=.\SQLEXPRESS` with integrated authentication: 80 passed, 0 failed (45 unit and 35 integration);
+- migration discovery and execution from an empty database through StockTransfers: passed in every integration-test fixture;
 - `dotnet ef migrations has-pending-model-changes`: passed with no model drift;
 - idempotent migration SQL script generation: passed;
-- SalesAndCash migration applied to the local StoreControl database: passed;
+- SaleCancellation and StockTransfers migrations applied to the local StoreControl database by DbMigrator: passed;
 - DbMigrator rerun: passed without duplicate reference registers; direct SQL reports 22 permissions, 3 CX-01 registers for 3 distinct stores and no artificial sale/session rows;
 - direct SQL role mappings: Administrador 22, Gerente 19, Vendedor 10 and Estoquista 9 effective default permission rows;
 - real-SQL sale tests: normal multi-item/multi-payment commit, exact idempotent replay, insufficient-stock rollback, simultaneous last-item contention, forced cross-module rollback, permission and store scope all passed;
@@ -230,12 +230,13 @@ Validated on Windows on 2026-08-30 with .NET 10, Node/npm and local SQL Server E
 - npm ci: passed with 0 reported vulnerabilities;
 - npm run typecheck: passed;
 - npm run lint: passed with zero warnings;
-- npm run build: passed, 126 modules transformed;
+- npm run build: passed, 132 modules transformed with transfer routes split into independent chunks and no size warning;
 - npm audit --omit=dev: passed with 0 reported vulnerabilities;
 - dotnet list package --vulnerable --include-transitive: no vulnerable packages reported;
 - generated `.env` Compose interpolation/syntax: passed;
-- an isolated Vite/API/SQL environment rendered the real login route successfully; browser credential submission was not performed, and the temporary validation database was safely removed afterward.
+- direct SQL on the local database confirmed both new migration IDs and all three transfer tables;
+- a live Vite/API/SQL Express environment rendered the real login route with no browser console warning/error; authenticated browser submission was not performed, while authenticated transfer/cancellation behavior was exercised by the HTTP/SQL integration suite.
 
-The authoritative end-to-end behavior validation is the ASP.NET Core HTTP integration suite against freshly migrated SQL Server databases, not mocks. It authenticates real seeded users and verifies durable rows/rollback across sales, payments, stock and cash.
+The authoritative end-to-end behavior validation is the ASP.NET Core HTTP integration suite against freshly migrated SQL Server databases, not mocks. It authenticates real seeded users and verifies durable rows/rollback across sales, cancellations, payments, transfers, stock and cash.
 
 Docker image build, Nginx runtime configuration and container startup could not be executed. The Docker Desktop Linux engine pipe remains absent and `docker info` cannot connect to `npipe:////./pipe/dockerDesktopLinuxEngine`. This is the same host-level blocker recorded in the earlier phases; repairing or resetting Docker Desktop is outside repository scope. Compose interpolation and syntax pass with a generated environment, while image build and service health must be rerun after the daemon is available.

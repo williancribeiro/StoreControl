@@ -48,6 +48,7 @@ export function AppLayout() {
               <span className="nav-section-label">Estoque</span>
               <NavLink className="nav-item" to="/inventory/positions">Posição atual</NavLink>
               <NavLink className="nav-item" to="/inventory/movements">Movimentações</NavLink>
+              <NavLink className="nav-item" to="/inventory/transfers">Transferências</NavLink>
               {hasPermission(permissions.inventoryManage) && (
                 <NavLink className="nav-item" to="/inventory/adjustments">Ajustes</NavLink>
               )}
@@ -159,6 +160,9 @@ function getPageTitle(pathname: string) {
   if (pathname.includes('/inventory/positions')) return 'Posição de estoque'
   if (pathname.includes('/inventory/movements')) return 'Histórico de estoque'
   if (pathname.includes('/inventory/adjustments')) return 'Ajustes de estoque'
+  if (pathname === '/inventory/transfers/new') return 'Nova transferência'
+  if (/^\/inventory\/transfers\/\d+$/.test(pathname)) return 'Detalhes da transferência'
+  if (pathname === '/inventory/transfers') return 'Transferências entre lojas'
   if (pathname === '/purchases/new') return 'Nova compra'
   if (/^\/purchases\/\d+$/.test(pathname)) return 'Detalhes da compra'
   if (pathname === '/purchases') return 'Histórico de compras'

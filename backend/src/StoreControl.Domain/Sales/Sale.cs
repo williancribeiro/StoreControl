@@ -172,16 +172,20 @@ public sealed class Sale
             throw new InvalidOperationException("Somente uma venda finalizada pode ser cancelada.");
         }
 
-        CancellationOperationId = cancellationOperationId != Guid.Empty
+        var validOperationId = cancellationOperationId != Guid.Empty
             ? cancellationOperationId
             : throw new ArgumentException("Informe um identificador de operação válido.", nameof(cancellationOperationId));
-        CancellationCashSessionId = cancellationCashSessionId > 0
+        var validCashSessionId = cancellationCashSessionId > 0
             ? cancellationCashSessionId
             : throw new ArgumentException("Informe uma sessão de caixa válida.", nameof(cancellationCashSessionId));
-        CancelledByUserId = cancelledByUserId != Guid.Empty
+        var validUserId = cancelledByUserId != Guid.Empty
             ? cancelledByUserId
             : throw new ArgumentException("Informe o usuário responsável.", nameof(cancelledByUserId));
-        CancellationReason = NormalizeRequired(reason, 500, nameof(reason));
+        var validReason = NormalizeRequired(reason, 500, nameof(reason));
+        CancellationOperationId = validOperationId;
+        CancellationCashSessionId = validCashSessionId;
+        CancelledByUserId = validUserId;
+        CancellationReason = validReason;
         Status = SaleStatus.Cancelled;
         CancelledAtUtc = DateTime.UtcNow;
         _statusHistory.Add(new SaleStatusHistory(

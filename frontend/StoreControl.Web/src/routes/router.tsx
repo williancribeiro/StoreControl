@@ -64,11 +64,31 @@ export const router = createBrowserRouter([
             children: [
               { path: 'inventory/positions', element: <StockPositionsPage /> },
               { path: 'inventory/movements', element: <StockMovementsPage /> },
+              {
+                path: 'inventory/transfers',
+                lazy: async () => ({
+                  Component: (await import('../features/inventory/StockTransfersPage')).StockTransfersPage,
+                }),
+              },
+              {
+                path: 'inventory/transfers/:stockTransferId',
+                lazy: async () => ({
+                  Component: (await import('../features/inventory/StockTransferDetailsPage')).StockTransferDetailsPage,
+                }),
+              },
             ],
           },
           {
             element: <PermissionRoute permission={permissions.inventoryManage} />,
-            children: [{ path: 'inventory/adjustments', element: <StockAdjustmentsPage /> }],
+            children: [
+              { path: 'inventory/adjustments', element: <StockAdjustmentsPage /> },
+              {
+                path: 'inventory/transfers/new',
+                lazy: async () => ({
+                  Component: (await import('../features/inventory/NewStockTransferPage')).NewStockTransferPage,
+                }),
+              },
+            ],
           },
           {
             element: <PermissionRoute permission={permissions.purchasesRead} />,

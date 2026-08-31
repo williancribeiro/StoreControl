@@ -1,5 +1,7 @@
 import { httpClient } from '../../shared/api/httpClient'
 import type {
+  CancelSaleInput,
+  CancelSaleResult,
   FinalizeSaleInput,
   FinalizeSaleResult,
   PagedSales,
@@ -14,6 +16,19 @@ export async function listSales(query: SaleQuery, signal?: AbortSignal) {
     ),
     signal,
   })
+  return response.data
+}
+
+export async function cancelSale(
+  saleId: number,
+  operationId: string,
+  input: CancelSaleInput,
+) {
+  const response = await httpClient.post<CancelSaleResult>(
+    `/api/sales/${saleId}/cancellation`,
+    input,
+    { headers: { 'Idempotency-Key': operationId } },
+  )
   return response.data
 }
 

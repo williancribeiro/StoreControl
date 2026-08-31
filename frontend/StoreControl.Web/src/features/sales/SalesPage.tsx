@@ -80,7 +80,7 @@ export function SalesPage() {
       {error && <div className="form-error page-message">{error}</div>}
       <div className="table-scroll"><table><thead><tr><th>Venda</th><th>Cliente</th><th>Loja</th><th>Operador</th><th>Itens</th><th>Desconto</th><th>Total</th><th>Finalização</th><th /></tr></thead><tbody>
         {result?.items.map((sale) => <tr key={sale.id}>
-          <td><strong>{sale.number}</strong><small className="table-subtitle">Finalizada</small></td>
+          <td><strong>{sale.number}</strong><small className="table-subtitle">{sale.status === 'Cancelled' ? 'Cancelada' : 'Finalizada'}</small></td>
           <td>{sale.customerName ?? 'Consumidor não identificado'}{sale.customerCode && <small className="table-subtitle">{sale.customerCode}</small>}</td>
           <td>{sale.storeCode}<small className="table-subtitle">{sale.storeName}</small></td>
           <td>{sale.createdByUserName}</td><td>{sale.itemCount}</td><td>{money.format(sale.discountAmount)}</td><td><strong>{money.format(sale.totalAmount)}</strong></td><td>{dateTime.format(new Date(sale.finalizedAtUtc))}</td>
