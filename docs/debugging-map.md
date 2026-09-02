@@ -1,5 +1,12 @@
 # Debugging map
 
+## Diagnostic conventions
+
+- `correlation ID` connects browser responses, Problem Details and structured API logs for one request;
+- `Idempotency-Key` identifies a retriable command and prevents a repeated request from duplicating its business effect;
+- `rowVersion` is the Base64 representation of SQL Server `rowversion` used to detect stale writes;
+- `OperationId` and movement reference fields connect a business command to its inventory or cash ledger entries.
+
 ## Login
 
     Browser LoginPage
