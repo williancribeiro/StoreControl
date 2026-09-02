@@ -109,6 +109,8 @@ Para gerar um script idempotente:
 
 ## Documentação
 
+Para uma primeira leitura, comece pelo estado atual, siga para a arquitetura e então consulte o fluxo de negócio que pretende estudar. O mapa de debugging é a referência para acompanhar uma operação entre frontend, API e banco.
+
 - [docs/specification.md](docs/specification.md): escopo canônico;
 - [docs/architecture.md](docs/architecture.md): arquitetura e dependências;
 - [docs/authentication.md](docs/authentication.md): autenticação, sessão e autorização;
