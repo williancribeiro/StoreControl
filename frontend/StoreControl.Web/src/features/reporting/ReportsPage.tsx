@@ -51,7 +51,10 @@ export function ReportsPage() {
   const [movements, setMovements] = useState<MovementReport | null>(null)
   const [purchases, setPurchases] = useState<PurchaseReport | null>(null)
   const [inventory, setInventory] = useState<PagedInventoryReport | null>(null)
-  const [error, setError] = useState<string | null>(null)
+  const [storeError, setStoreError] = useState<string | null>(null)
+  const [periodError, setPeriodError] = useState<string | null>(null)
+  const [inventoryError, setInventoryError] = useState<string | null>(null)
+  const error = storeError ?? periodError ?? inventoryError
   const { register, handleSubmit } = useForm<ReportFilters>({
     defaultValues: {
       fromDate: initialPeriod.fromDate,
@@ -78,9 +81,12 @@ export function ReportsPage() {
 
     const controller = new AbortController()
     void listStores(controller.signal)
-      .then((items) => setStores(items.filter((store) => store.isActive)))
+      .then((items) => {
+        setStores(items.filter((store) => store.isActive))
+        setStoreError(null)
+      })
       .catch((requestError) => {
-        if (!controller.signal.aborted) setError(getProblemMessage(requestError))
+        if (!controller.signal.aborted) setStoreError(getProblemMessage(requestError))
       })
     return () => controller.abort()
   }, [user])
@@ -96,10 +102,10 @@ export function ReportsPage() {
         setSales(salesResult)
         setMovements(movementResult)
         setPurchases(purchaseResult)
-        setError(null)
+        setPeriodError(null)
       })
       .catch((requestError) => {
-        if (!controller.signal.aborted) setError(getProblemMessage(requestError))
+        if (!controller.signal.aborted) setPeriodError(getProblemMessage(requestError))
       })
     return () => controller.abort()
   }, [periodQuery])
@@ -109,10 +115,10 @@ export function ReportsPage() {
     void getInventoryReport(inventoryQuery, controller.signal)
       .then((result) => {
         setInventory(result)
-        setError(null)
+        setInventoryError(null)
       })
       .catch((requestError) => {
-        if (!controller.signal.aborted) setError(getProblemMessage(requestError))
+        if (!controller.signal.aborted) setInventoryError(getProblemMessage(requestError))
       })
     return () => controller.abort()
   }, [inventoryQuery])
