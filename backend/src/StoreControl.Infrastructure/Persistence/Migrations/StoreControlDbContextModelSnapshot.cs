@@ -1307,6 +1307,8 @@ namespace StoreControl.Infrastructure.Persistence.Migrations
                     b.HasIndex("SaleId", "ProductId")
                         .IsUnique();
 
+                    SqlServerIndexBuilderExtensions.IncludeProperties(b.HasIndex("SaleId", "ProductId"), new[] { "Quantity", "LineSubtotal" });
+
                     b.ToTable("SaleItems", "sales", t =>
                         {
                             t.HasCheckConstraint("CK_SaleItems_LineSubtotal_NonNegative", "[LineSubtotal] >= 0");

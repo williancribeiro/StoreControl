@@ -23,7 +23,9 @@ internal sealed class SaleItemConfiguration : IEntityTypeConfiguration<SaleItem>
         builder.Property(item => item.Quantity).HasPrecision(18, 3);
         builder.Property(item => item.UnitPrice).HasPrecision(18, 2);
         builder.Property(item => item.LineSubtotal).HasPrecision(18, 2);
-        builder.HasIndex(item => new { item.SaleId, item.ProductId }).IsUnique();
+        builder.HasIndex(item => new { item.SaleId, item.ProductId })
+            .IsUnique()
+            .IncludeProperties(item => new { item.Quantity, item.LineSubtotal });
         builder.HasOne(item => item.Product)
             .WithMany()
             .HasForeignKey(item => item.ProductId)
