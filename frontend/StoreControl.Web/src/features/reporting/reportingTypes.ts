@@ -132,6 +132,14 @@ export type PurchaseStoreSummary = {
   receivedAmount: number
 }
 
+export type PurchaseSupplierSummary = {
+  supplierId: number
+  supplierCode: string
+  supplierName: string
+  orderCount: number
+  orderedAmount: number
+}
+
 export type PurchaseReport = {
   fromDate: string
   toDate: string
@@ -141,6 +149,7 @@ export type PurchaseReport = {
   receivedAmount: number
   byStatus: PurchaseStatusSummary[]
   byStore: PurchaseStoreSummary[]
+  bySupplier: PurchaseSupplierSummary[]
 }
 
 export type PagedInventoryReport = PagedResult<InventoryReportRow>

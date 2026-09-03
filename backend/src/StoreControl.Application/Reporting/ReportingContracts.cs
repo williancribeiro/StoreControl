@@ -117,6 +117,13 @@ public sealed record PurchaseStoreSummary(
     decimal OrderedAmount,
     decimal ReceivedAmount);
 
+public sealed record PurchaseSupplierSummary(
+    int SupplierId,
+    string SupplierCode,
+    string SupplierName,
+    long OrderCount,
+    decimal OrderedAmount);
+
 public sealed record PurchaseReport(
     DateOnly FromDate,
     DateOnly ToDate,
@@ -125,7 +132,8 @@ public sealed record PurchaseReport(
     decimal OrderedAmount,
     decimal ReceivedAmount,
     IReadOnlyCollection<PurchaseStatusSummary> ByStatus,
-    IReadOnlyCollection<PurchaseStoreSummary> ByStore);
+    IReadOnlyCollection<PurchaseStoreSummary> ByStore,
+    IReadOnlyCollection<PurchaseSupplierSummary> BySupplier);
 
 public interface IReportingService
 {

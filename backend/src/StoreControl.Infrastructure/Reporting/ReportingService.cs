@@ -307,6 +307,9 @@ internal sealed class ReportingService(StoreControlDbContext dbContext) : IRepor
                 order.StoreId,
                 StoreCode = order.Store.Code,
                 StoreName = order.Store.Name,
+                order.SupplierId,
+                SupplierCode = order.Supplier.Code,
+                SupplierName = order.Supplier.Name,
                 order.Status,
                 order.TotalAmount
             })
@@ -344,6 +347,21 @@ internal sealed class ReportingService(StoreControlDbContext dbContext) : IRepor
                 Money(group.Where(row => row.Status != PurchaseOrderStatus.Cancelled).Sum(row => row.TotalAmount)),
                 receivedByStore.GetValueOrDefault(group.Key.StoreId)))
             .ToArray();
+        var bySupplier = orderRows
+            .GroupBy(row => new { row.SupplierId, row.SupplierCode, row.SupplierName })
+            .OrderByDescending(group => group
+                .Where(row => row.Status != PurchaseOrderStatus.Cancelled)
+                .Sum(row => row.TotalAmount))
+            .ThenBy(group => group.Key.SupplierName)
+            .Select(group => new PurchaseSupplierSummary(
+                group.Key.SupplierId,
+                group.Key.SupplierCode,
+                group.Key.SupplierName,
+                group.LongCount(),
+                Money(group
+                    .Where(row => row.Status != PurchaseOrderStatus.Cancelled)
+                    .Sum(row => row.TotalAmount))))
+            .ToArray();
 
         return new PurchaseReport(
             query.FromDate,
@@ -355,7 +373,8 @@ internal sealed class ReportingService(StoreControlDbContext dbContext) : IRepor
                 .Sum(row => row.TotalAmount)),
             Money(receivedRows.Sum(row => row.Amount)),
             byStatus,
-            byStore);
+            byStore,
+            bySupplier);
     }
 
     private async Task<int[]> GetScopedStoreIdsAsync(

@@ -1,5 +1,6 @@
 import { createBrowserRouter } from 'react-router-dom'
 import { AccessDeniedPage } from '../features/auth/AccessDeniedPage'
+import { DashboardPage } from '../features/auth/DashboardPage'
 import { LoginPage } from '../features/auth/LoginPage'
 import { ProfilePage } from '../features/auth/ProfilePage'
 import { PermissionRoute, ProtectedRoute } from '../features/auth/ProtectedRoute'
@@ -20,7 +21,6 @@ import { PurchasesPage } from '../features/purchasing/PurchasesPage'
 import { CashHistoryPage } from '../features/cash/CashHistoryPage'
 import { CashOperationPage } from '../features/cash/CashOperationPage'
 import { CashSessionDetailsPage } from '../features/cash/CashSessionDetailsPage'
-import { NewSalePage } from '../features/sales/NewSalePage'
 import { SaleDetailsPage } from '../features/sales/SaleDetailsPage'
 import { SalesPage } from '../features/sales/SalesPage'
 import { AppLayout } from '../shared/layout/AppLayout'
@@ -38,12 +38,7 @@ export const router = createBrowserRouter([
         path: '/',
         element: <AppLayout />,
         children: [
-          {
-            index: true,
-            lazy: async () => ({
-              Component: (await import('../features/auth/DashboardPage')).DashboardPage,
-            }),
-          },
+          { index: true, element: <DashboardPage /> },
           { path: 'profile', element: <ProfilePage /> },
           { path: 'access-denied', element: <AccessDeniedPage /> },
           { path: 'system/smoke', element: <SmokePage /> },
@@ -114,7 +109,14 @@ export const router = createBrowserRouter([
           },
           {
             element: <PermissionRoute permission={permissions.salesManage} />,
-            children: [{ path: 'sales/new', element: <NewSalePage /> }],
+            children: [
+              {
+                path: 'sales/new',
+                lazy: async () => ({
+                  Component: (await import('../features/sales/NewSalePage')).NewSalePage,
+                }),
+              },
+            ],
           },
           {
             element: <PermissionRoute permission={permissions.cashRead} />,

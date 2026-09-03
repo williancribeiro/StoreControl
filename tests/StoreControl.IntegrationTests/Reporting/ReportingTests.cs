@@ -93,6 +93,7 @@ public sealed class ReportingTests(SqlServerApiFactory factory) : IClassFixture<
         var purchases = await manager.GetFromJsonAsync<JsonDocument>(
             $"/api/reports/purchases?fromDate={fromDate}&toDate={toDate}");
         Assert.True(purchases!.RootElement.GetProperty("orderCount").GetInt64() > 0);
+        Assert.NotEmpty(purchases.RootElement.GetProperty("bySupplier").EnumerateArray());
         Assert.All(
             purchases.RootElement.GetProperty("byStore").EnumerateArray(),
             item => Assert.Equal("CENTRAL", item.GetProperty("storeCode").GetString()));

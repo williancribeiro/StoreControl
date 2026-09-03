@@ -242,6 +242,16 @@ export function ReportsPage() {
                 </tbody>
               </table>
             </ReportPanel>
+
+            <ReportPanel eyebrow="Fornecedores no período" title="Compras por fornecedor" wide>
+              <table>
+                <thead><tr><th>Fornecedor</th><th>Pedidos</th><th>Valor não cancelado</th></tr></thead>
+                <tbody>
+                  {purchases.bySupplier.map((row) => <tr key={row.supplierId}><td><strong>{row.supplierName}</strong><small className="table-subtitle">{row.supplierCode}</small></td><td>{row.orderCount}</td><td>{money.format(row.orderedAmount)}</td></tr>)}
+                  {purchases.bySupplier.length === 0 && <tr><td colSpan={3}>Sem fornecedores para agrupar.</td></tr>}
+                </tbody>
+              </table>
+            </ReportPanel>
           </div>
         </>
       )}
