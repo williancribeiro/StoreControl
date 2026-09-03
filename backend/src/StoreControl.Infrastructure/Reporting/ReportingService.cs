@@ -417,19 +417,45 @@ internal sealed class ReportingService(StoreControlDbContext dbContext) : IRepor
             new SqlParameter("@StoreIds", SqlDbType.NVarChar, -1) { Value = string.Join(',', storeIds) },
             new SqlParameter("@Limit", SqlDbType.Int) { Value = limit }
         };
-        var rows = await dbContext.Database
-            .SqlQueryRaw<TopSellingProductSqlRow>(
-                "EXEC reporting.usp_TopSellingProducts @FromUtc, @ToUtcExclusive, @StoreIds, @Limit",
-                parameters)
-            .ToListAsync(cancellationToken);
+        var connection = dbContext.Database.GetDbConnection();
+        var shouldClose = connection.State != ConnectionState.Open;
+        if (shouldClose)
+        {
+            await connection.OpenAsync(cancellationToken);
+        }
 
-        return rows.Select(row => new TopSellingProductSummary(
-            row.ProductId,
-            row.ProductCode,
-            row.ProductName,
-            row.QuantitySold,
-            Money(row.GrossRevenue),
-            row.SaleCount)).ToArray();
+        try
+        {
+            await using var command = connection.CreateCommand();
+            command.CommandText = "reporting.usp_TopSellingProducts";
+            command.CommandType = CommandType.StoredProcedure;
+            foreach (var parameter in parameters)
+            {
+                command.Parameters.Add(parameter);
+            }
+
+            var products = new List<TopSellingProductSummary>();
+            await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+            while (await reader.ReadAsync(cancellationToken))
+            {
+                products.Add(new TopSellingProductSummary(
+                    reader.GetInt32(0),
+                    reader.GetString(1),
+                    reader.GetString(2),
+                    reader.GetDecimal(3),
+                    Money(reader.GetDecimal(4)),
+                    reader.GetInt64(5)));
+            }
+
+            return products;
+        }
+        finally
+        {
+            if (shouldClose)
+            {
+                await connection.CloseAsync();
+            }
+        }
     }
 
     private static void ValidatePeriod(DateOnly fromDate, DateOnly toDate)
