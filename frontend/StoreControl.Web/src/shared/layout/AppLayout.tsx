@@ -2,8 +2,6 @@ import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../features/auth/useAuth'
 import { permissions } from '../../features/auth/authTypes'
 
-const plannedModules = ['Relatórios']
-
 export function AppLayout() {
   const { user, hasPermission, logout } = useAuth()
   const location = useLocation()
@@ -81,12 +79,9 @@ export function AppLayout() {
               <NavLink className="nav-item" to="/cash/history">Histórico</NavLink>
             </>
           )}
-          {plannedModules.map((module) => (
-            <span className="nav-item nav-item-disabled" key={module}>
-              {module}
-              <small>planejado</small>
-            </span>
-          ))}
+          {hasPermission(permissions.reportsRead) && (
+            <NavLink className="nav-item" to="/reports">Relatórios</NavLink>
+          )}
           {(hasPermission(permissions.usersRead) ||
             hasPermission(permissions.rolesRead) ||
             hasPermission(permissions.storesRead)) && (
@@ -172,6 +167,7 @@ function getPageTitle(pathname: string) {
   if (pathname === '/cash/current') return 'Operação de caixa'
   if (/^\/cash\/sessions\/\d+$/.test(pathname)) return 'Detalhes do caixa'
   if (pathname === '/cash/history') return 'Histórico de caixas'
+  if (pathname === '/reports') return 'Relatórios gerenciais'
   if (pathname.includes('/users')) return 'Usuários'
   if (pathname.includes('/roles')) return 'Perfis e permissões'
   if (pathname.includes('/stores')) return 'Lojas e filiais'

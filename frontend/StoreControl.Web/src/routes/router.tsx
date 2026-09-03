@@ -1,6 +1,5 @@
 import { createBrowserRouter } from 'react-router-dom'
 import { AccessDeniedPage } from '../features/auth/AccessDeniedPage'
-import { DashboardPage } from '../features/auth/DashboardPage'
 import { LoginPage } from '../features/auth/LoginPage'
 import { ProfilePage } from '../features/auth/ProfilePage'
 import { PermissionRoute, ProtectedRoute } from '../features/auth/ProtectedRoute'
@@ -39,7 +38,12 @@ export const router = createBrowserRouter([
         path: '/',
         element: <AppLayout />,
         children: [
-          { index: true, element: <DashboardPage /> },
+          {
+            index: true,
+            lazy: async () => ({
+              Component: (await import('../features/auth/DashboardPage')).DashboardPage,
+            }),
+          },
           { path: 'profile', element: <ProfilePage /> },
           { path: 'access-denied', element: <AccessDeniedPage /> },
           { path: 'system/smoke', element: <SmokePage /> },
@@ -122,6 +126,17 @@ export const router = createBrowserRouter([
           {
             element: <PermissionRoute permission={permissions.cashManage} />,
             children: [{ path: 'cash/current', element: <CashOperationPage /> }],
+          },
+          {
+            element: <PermissionRoute permission={permissions.reportsRead} />,
+            children: [
+              {
+                path: 'reports',
+                lazy: async () => ({
+                  Component: (await import('../features/reporting/ReportsPage')).ReportsPage,
+                }),
+              },
+            ],
           },
           {
             element: <PermissionRoute permission={permissions.usersRead} />,

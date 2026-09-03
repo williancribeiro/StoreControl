@@ -1900,3 +1900,253 @@ td {
     min-width: 0;
   }
 }
+
+/* Reporting keeps dense tables readable while giving the daily overview more visual hierarchy. */
+.business-dashboard,
+.reports-layout {
+  display: grid;
+  max-width: 1480px;
+  gap: 18px;
+}
+
+.dashboard-toolbar {
+  display: grid;
+  grid-template-columns: minmax(260px, 1fr) minmax(210px, 0.35fr) minmax(180px, 0.28fr);
+  align-items: end;
+  gap: 14px;
+}
+
+.dashboard-toolbar h2,
+.dashboard-toolbar label {
+  margin-bottom: 0;
+}
+
+.dashboard-toolbar label,
+.report-filters label {
+  color: #53685a;
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.dashboard-toolbar input,
+.dashboard-toolbar select,
+.report-filters input,
+.report-filters select {
+  margin-top: 5px;
+}
+
+.dashboard-kpis,
+.report-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 18px;
+}
+
+.dashboard-metric {
+  min-height: 150px;
+}
+
+.dashboard-metric .metric-value {
+  font-size: clamp(1.75rem, 2.4vw, 2.6rem);
+}
+
+.dashboard-metric-alert .metric-value {
+  color: #a34338;
+}
+
+.dashboard-report-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.65fr) minmax(320px, 0.7fr);
+  gap: 18px;
+}
+
+.dashboard-report-grid .panel-wide {
+  grid-column: 1 / -1;
+}
+
+.chart-panel {
+  min-height: 360px;
+}
+
+.sales-chart {
+  display: grid;
+  height: 255px;
+  grid-template-columns: repeat(7, minmax(62px, 1fr));
+  align-items: end;
+  gap: 10px;
+  overflow-x: auto;
+}
+
+.sales-chart-column {
+  display: grid;
+  min-width: 62px;
+  grid-template-rows: 22px 150px auto auto;
+  gap: 5px;
+  text-align: center;
+}
+
+.sales-chart-column > span,
+.sales-chart-column > small {
+  overflow: hidden;
+  color: #748278;
+  font-size: 0.65rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sales-chart-track {
+  position: relative;
+  overflow: hidden;
+  background: #edf2ee;
+  border-radius: 7px 7px 3px 3px;
+}
+
+.sales-chart-track i {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  display: block;
+  background: linear-gradient(180deg, #73b487, #347348);
+  border-radius: 7px 7px 3px 3px;
+}
+
+.sales-chart-column > strong {
+  color: #32473a;
+  font-size: 0.75rem;
+}
+
+.ranking-list {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  counter-reset: ranking;
+}
+
+.ranking-list li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  padding: 11px 12px;
+  background: #f7faf7;
+  border-radius: 9px;
+  counter-increment: ranking;
+}
+
+.ranking-list li::before {
+  display: none;
+  content: counter(ranking);
+}
+
+.ranking-list li > span:last-child {
+  text-align: right;
+}
+
+.ranking-list strong,
+.ranking-list small {
+  display: block;
+}
+
+.ranking-list small {
+  margin-top: 3px;
+  color: #75847a;
+  font-size: 0.69rem;
+}
+
+.ranking-list .list-empty {
+  display: block;
+  color: #75847a;
+}
+
+.report-filters {
+  display: grid;
+  grid-template-columns: minmax(250px, 1.2fr) repeat(5, minmax(135px, 0.55fr)) auto;
+  align-items: end;
+  gap: 10px;
+}
+
+.report-filters h2 {
+  margin-bottom: 0;
+}
+
+.report-filters .button {
+  min-height: 41px;
+}
+
+.report-summary-card {
+  display: grid;
+  gap: 5px;
+}
+
+.report-summary-card > span {
+  color: #6b7a70;
+  font-size: 0.72rem;
+  font-weight: 750;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.report-summary-card > strong {
+  color: #347348;
+  font-size: 1.7rem;
+}
+
+.report-summary-card > small {
+  color: #7b8980;
+}
+
+.report-sections {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+}
+
+.report-panel {
+  min-width: 0;
+}
+
+.report-panel-wide {
+  grid-column: 1 / -1;
+}
+
+@media (max-width: 1250px) {
+  .report-filters {
+    grid-template-columns: repeat(3, minmax(160px, 1fr));
+  }
+
+  .report-filters > div {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 1000px) {
+  .dashboard-toolbar,
+  .dashboard-report-grid,
+  .report-sections {
+    grid-template-columns: 1fr;
+  }
+
+  .dashboard-report-grid .panel-wide,
+  .report-panel-wide {
+    grid-column: auto;
+  }
+
+  .dashboard-kpis,
+  .report-summary-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 620px) {
+  .dashboard-kpis,
+  .report-summary-grid,
+  .report-filters {
+    grid-template-columns: 1fr;
+  }
+
+  .report-filters > div {
+    grid-column: auto;
+  }
+}
