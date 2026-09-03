@@ -24,6 +24,7 @@ public static class PermissionCodes
     public const string SalesManage = "sales.manage";
     public const string CashRead = "cash.read";
     public const string CashManage = "cash.manage";
+    public const string ReportsRead = "reports.read";
 
     public static readonly IReadOnlyCollection<string> All =
     [
@@ -48,6 +49,7 @@ public static class PermissionCodes
         SalesRead,
         SalesManage,
         CashRead,
-        CashManage
+        CashManage,
+        ReportsRead
     ];
 }

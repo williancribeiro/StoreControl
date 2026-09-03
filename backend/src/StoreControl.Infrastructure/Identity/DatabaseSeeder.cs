@@ -46,7 +46,8 @@ internal sealed class DatabaseSeeder(
             [PermissionCodes.SalesRead] = "Consultar vendas nas lojas permitidas.",
             [PermissionCodes.SalesManage] = "Finalizar vendas e seus pagamentos nas lojas permitidas.",
             [PermissionCodes.CashRead] = "Consultar sessões e movimentações de caixa nas lojas permitidas.",
-            [PermissionCodes.CashManage] = "Abrir, movimentar e fechar caixas nas lojas permitidas."
+            [PermissionCodes.CashManage] = "Abrir, movimentar e fechar caixas nas lojas permitidas.",
+            [PermissionCodes.ReportsRead] = "Consultar dashboard e relatórios consolidados nas lojas permitidas."
         };
 
     public async Task SeedAsync(CancellationToken cancellationToken)
@@ -58,6 +59,7 @@ internal sealed class DatabaseSeeder(
         await EnsureInventoryRolePermissionsAsync(cancellationToken);
         await EnsurePurchaseRolePermissionsAsync(cancellationToken);
         await EnsureSalesAndCashRolePermissionsAsync(cancellationToken);
+        await EnsureReportingRolePermissionsAsync(cancellationToken);
         var stores = await EnsureStoresAsync(cancellationToken);
         await cashRegisterSeeder.SeedAsync(cancellationToken);
 
@@ -437,6 +439,55 @@ internal sealed class DatabaseSeeder(
 
         var affectedUserIds = await dbContext.UserStoreRoles
             .Where(assignment => affectedRoleIds.Contains(assignment.RoleId))
+            .Select(assignment => assignment.UserId)
+            .Distinct()
+            .ToListAsync(cancellationToken);
+        var affectedUsers = await dbContext.Users
+            .Where(user => affectedUserIds.Contains(user.Id))
+            .ToListAsync(cancellationToken);
+        foreach (var user in affectedUsers)
+        {
+            user.SecurityStamp = Guid.NewGuid().ToString("N");
+        }
+
+        dbContext.FoundationRecords.Add(new FoundationRecord
+        {
+            Key = seedKey,
+            Value = "applied",
+            UpdatedAtUtc = DateTime.UtcNow
+        });
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    private async Task EnsureReportingRolePermissionsAsync(CancellationToken cancellationToken)
+    {
+        const string seedKey = "reporting-permissions-v1";
+        if (await dbContext.FoundationRecords.AnyAsync(record => record.Key == seedKey, cancellationToken))
+        {
+            return;
+        }
+
+        var managerRoleId = await dbContext.Roles
+            .Where(role => role.Name == RoleNames.Manager)
+            .Select(role => role.Id)
+            .SingleAsync(cancellationToken);
+        var permissionId = await dbContext.Permissions
+            .Where(permission => permission.Code == PermissionCodes.ReportsRead)
+            .Select(permission => permission.Id)
+            .SingleAsync(cancellationToken);
+        if (!await dbContext.RolePermissions.AnyAsync(
+                mapping => mapping.RoleId == managerRoleId && mapping.PermissionId == permissionId,
+                cancellationToken))
+        {
+            dbContext.RolePermissions.Add(new RolePermission
+            {
+                RoleId = managerRoleId,
+                PermissionId = permissionId
+            });
+        }
+
+        var affectedUserIds = await dbContext.UserStoreRoles
+            .Where(assignment => assignment.RoleId == managerRoleId)
             .Select(assignment => assignment.UserId)
             .Distinct()
             .ToListAsync(cancellationToken);

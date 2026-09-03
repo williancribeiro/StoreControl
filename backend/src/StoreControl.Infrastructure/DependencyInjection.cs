@@ -7,6 +7,7 @@ using StoreControl.Application.Catalog;
 using StoreControl.Application.Cash;
 using StoreControl.Application.Inventory;
 using StoreControl.Application.Purchasing;
+using StoreControl.Application.Reporting;
 using StoreControl.Application.Sales;
 using StoreControl.Application.Parties;
 using StoreControl.Application.Security;
@@ -17,6 +18,7 @@ using StoreControl.Infrastructure.HealthChecks;
 using StoreControl.Infrastructure.Identity;
 using StoreControl.Infrastructure.Inventory;
 using StoreControl.Infrastructure.Purchasing;
+using StoreControl.Infrastructure.Reporting;
 using StoreControl.Infrastructure.Sales;
 using StoreControl.Infrastructure.Parties;
 using StoreControl.Infrastructure.Persistence;
@@ -89,6 +91,7 @@ public static class DependencyInjection
         services.AddScoped<IPurchaseService, PurchaseService>();
         services.AddScoped<ICashService, CashService>();
         services.AddScoped<ISaleService, SaleService>();
+        services.AddScoped<IReportingService, ReportingService>();
         services.AddHealthChecks()
             .AddCheck<SqlServerHealthCheck>("sqlserver", tags: ["ready"]);
 

@@ -39,6 +39,9 @@ internal sealed class StockMovementConfiguration : IEntityTypeConfiguration<Stoc
         builder.Property(movement => movement.ReferenceId).HasMaxLength(100);
         builder.HasIndex(movement => new { movement.StoreId, movement.OccurredAtUtc }).IsDescending(false, true);
         builder.HasIndex(movement => new { movement.ProductId, movement.OccurredAtUtc }).IsDescending(false, true);
+        builder.HasIndex(movement => new { movement.OccurredAtUtc, movement.StoreId, movement.Type })
+            .IsDescending(true, false, false)
+            .IncludeProperties(movement => movement.QuantityChange);
         builder.HasIndex(movement => new { movement.ReferenceType, movement.ReferenceId })
             .HasFilter("[ReferenceType] IS NOT NULL");
         builder.HasIndex(movement => new

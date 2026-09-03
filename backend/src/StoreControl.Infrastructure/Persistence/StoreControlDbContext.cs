@@ -18,6 +18,10 @@ public sealed class StoreControlDbContext(DbContextOptions<StoreControlDbContext
 {
     internal DbSet<FoundationRecord> FoundationRecords => Set<FoundationRecord>();
 
+    internal DbSet<DailySalesReportRow> DailySalesReportRows => Set<DailySalesReportRow>();
+
+    internal DbSet<StockPositionReportRow> StockPositionReportRows => Set<StockPositionReportRow>();
+
     public DbSet<Store> Stores => Set<Store>();
 
     public DbSet<Category> Categories => Set<Category>();

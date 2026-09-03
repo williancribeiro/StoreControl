@@ -44,6 +44,9 @@ internal sealed class SaleConfiguration : IEntityTypeConfiguration<Sale>
             .IsUnique()
             .HasFilter("[CancellationOperationId] IS NOT NULL");
         builder.HasIndex(sale => new { sale.StoreId, sale.FinalizedAtUtc }).IsDescending(false, true);
+        builder.HasIndex(sale => new { sale.Status, sale.FinalizedAtUtc, sale.StoreId })
+            .IsDescending(false, true, false)
+            .IncludeProperties(sale => new { sale.Subtotal, sale.DiscountAmount, sale.TotalAmount });
         builder.HasIndex(sale => new { sale.CustomerId, sale.FinalizedAtUtc }).IsDescending(false, true);
         builder.HasIndex(sale => sale.CashSessionId);
         builder.HasOne(sale => sale.Store)

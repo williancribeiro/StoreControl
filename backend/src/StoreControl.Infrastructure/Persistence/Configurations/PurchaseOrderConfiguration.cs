@@ -24,6 +24,9 @@ internal sealed class PurchaseOrderConfiguration : IEntityTypeConfiguration<Purc
         builder.Property(order => order.TotalAmount).HasPrecision(18, 2);
         builder.Property(order => order.RowVersion).IsRowVersion();
         builder.HasIndex(order => new { order.StoreId, order.Status, order.CreatedAtUtc }).IsDescending(false, false, true);
+        builder.HasIndex(order => new { order.CreatedAtUtc, order.StoreId, order.Status })
+            .IsDescending(true, false, false)
+            .IncludeProperties(order => order.TotalAmount);
         builder.HasIndex(order => new { order.SupplierId, order.CreatedAtUtc }).IsDescending(false, true);
         builder.HasIndex(order => new { order.Status, order.ExpectedDate });
         builder.HasOne(order => order.Store)

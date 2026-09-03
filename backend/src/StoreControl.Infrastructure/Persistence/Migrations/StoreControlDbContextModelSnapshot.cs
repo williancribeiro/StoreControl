@@ -585,6 +585,11 @@ namespace StoreControl.Infrastructure.Persistence.Migrations
                     b.HasIndex("StoreId", "OccurredAtUtc")
                         .IsDescending(false, true);
 
+                    b.HasIndex("OccurredAtUtc", "StoreId", "Type")
+                        .IsDescending(true, false, false);
+
+                    SqlServerIndexBuilderExtensions.IncludeProperties(b.HasIndex("OccurredAtUtc", "StoreId", "Type"), new[] { "QuantityChange" });
+
                     b.HasIndex("StoreId", "ProductId", "ReferenceType", "ReferenceId")
                         .IsUnique()
                         .HasFilter("[ReferenceType] IS NOT NULL AND [ReferenceId] IS NOT NULL");
@@ -979,6 +984,11 @@ namespace StoreControl.Infrastructure.Persistence.Migrations
                     b.HasIndex("SupplierId", "CreatedAtUtc")
                         .IsDescending(false, true);
 
+                    b.HasIndex("CreatedAtUtc", "StoreId", "Status")
+                        .IsDescending(true, false, false);
+
+                    SqlServerIndexBuilderExtensions.IncludeProperties(b.HasIndex("CreatedAtUtc", "StoreId", "Status"), new[] { "TotalAmount" });
+
                     b.HasIndex("StoreId", "Status", "CreatedAtUtc")
                         .IsDescending(false, false, true);
 
@@ -1234,6 +1244,11 @@ namespace StoreControl.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("StoreId", "FinalizedAtUtc")
                         .IsDescending(false, true);
+
+                    b.HasIndex("Status", "FinalizedAtUtc", "StoreId")
+                        .IsDescending(false, true, false);
+
+                    SqlServerIndexBuilderExtensions.IncludeProperties(b.HasIndex("Status", "FinalizedAtUtc", "StoreId"), new[] { "Subtotal", "DiscountAmount", "TotalAmount" });
 
                     b.ToTable("Sales", "sales", t =>
                         {
@@ -1680,6 +1695,34 @@ namespace StoreControl.Infrastructure.Persistence.Migrations
                     b.ToTable("UserStoreRoles", "security");
                 });
 
+            modelBuilder.Entity("StoreControl.Infrastructure.Persistence.Models.DailySalesReportRow", b =>
+                {
+                    b.Property<decimal>("DiscountAmount")
+                        .HasPrecision(38, 2)
+                        .HasColumnType("decimal(38,2)");
+
+                    b.Property<decimal>("GrossRevenue")
+                        .HasPrecision(38, 2)
+                        .HasColumnType("decimal(38,2)");
+
+                    b.Property<decimal>("Revenue")
+                        .HasPrecision(38, 2)
+                        .HasColumnType("decimal(38,2)");
+
+                    b.Property<long>("SaleCount")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateOnly>("SaleDate")
+                        .HasColumnType("date");
+
+                    b.Property<int>("StoreId")
+                        .HasColumnType("int");
+
+                    b.ToTable((string)null);
+
+                    b.ToView("vw_DailySales", "reporting");
+                });
+
             modelBuilder.Entity("StoreControl.Infrastructure.Persistence.Models.FoundationRecord", b =>
                 {
                     b.Property<string>("Key")
@@ -1706,6 +1749,55 @@ namespace StoreControl.Infrastructure.Persistence.Migrations
                             UpdatedAtUtc = new DateTime(2026, 8, 27, 0, 0, 0, 0, DateTimeKind.Utc),
                             Value = "1"
                         });
+                });
+
+            modelBuilder.Entity("StoreControl.Infrastructure.Persistence.Models.StockPositionReportRow", b =>
+                {
+                    b.Property<string>("CategoryName")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("nvarchar(120)");
+
+                    b.Property<bool>("IsBelowMinimum")
+                        .HasColumnType("bit");
+
+                    b.Property<decimal>("MinimumQuantity")
+                        .HasPrecision(18, 3)
+                        .HasColumnType("decimal(18,3)");
+
+                    b.Property<string>("ProductCode")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
+
+                    b.Property<int>("ProductId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("ProductName")
+                        .IsRequired()
+                        .HasMaxLength(160)
+                        .HasColumnType("nvarchar(160)");
+
+                    b.Property<decimal>("QuantityOnHand")
+                        .HasPrecision(18, 3)
+                        .HasColumnType("decimal(18,3)");
+
+                    b.Property<string>("StoreCode")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<int>("StoreId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("StoreName")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("nvarchar(120)");
+
+                    b.ToTable((string)null);
+
+                    b.ToView("vw_StockPosition", "reporting");
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<System.Guid>", b =>
