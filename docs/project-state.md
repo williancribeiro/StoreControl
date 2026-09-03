@@ -1,10 +1,10 @@
 # Project state
 
-Last updated: 2026-08-30.
+Last updated: 2026-09-02.
 
 ## Current phase
 
-Prompt 7 is complete: sale cancellation and the full store-transfer flow are implemented across backend, frontend, SQL, tests and documentation.
+Prompt 8 is complete: dashboard and sales, inventory, movement and purchase reports are implemented across backend, frontend, SQL, tests and documentation.
 
 ## Implemented
 
@@ -100,9 +100,25 @@ Sales and cash:
 - cancellation without deletion, rowversion/idempotency, append-only status audit, stock return and signed payment refunds in one transaction;
 - sales-flow, cash-flow, architecture, ADR, database, API, authentication, frontend, inventory, testing and debugging documentation.
 
+Reporting:
+
+- `reports.read` policy and server-side scope for every dashboard/report query;
+- business dashboard with selected-day sales, revenue, ticket, low-stock alerts, top products and seven-day evolution;
+- sales report by inclusive UTC period and store with gross/discount/net totals, daily evolution and top-product ranking;
+- paged inventory report with search, store, low-stock and sort filters;
+- movement entry/exit report grouped by type and store;
+- purchase report grouped by status/store/supplier with ordered and received historical values;
+- keyless EF projections over `reporting.vw_DailySales` and `reporting.vw_StockPosition`;
+- parameterized `reporting.usp_TopSellingProducts` invocation through direct `DbCommand`;
+- LINQ/EF Core groupings for movement and purchase reads where handwritten SQL adds no benefit;
+- period/reporting indexes plus a covering sale-item index validated through SQL Server query plans;
+- React dashboard and reporting workspace with permission-aware navigation, filters and pagination;
+- real-SQL tests for calculations, cancellation exclusion, procedure/views/indexes, permission, store scope and period limits;
+- no Redis read/write in this phase.
+
 ## Pending modules
 
-Reporting, Redis cache integration, RabbitMQ producer/consumer integration and business Worker workloads.
+Redis cache integration, RabbitMQ producer/consumer integration and business Worker workloads.
 
 MFA, external identity providers, password-recovery e-mail and self-registration remain outside the current phase.
 
@@ -116,15 +132,17 @@ MFA, external identity providers, password-recovery e-mail and self-registration
 - 20260830190812_SalesAndCash: sales/cash schemas, finalized sale/item/payment rows, registers/sessions/signed ledger, rowversion, checks, restrictive relationships and idempotency/concurrency indexes.
 - 20260830233557_SaleCancellation: sale cancellation metadata/history/rowversion, refund-session references and signed one-to-one payment reversals.
 - 20260830234649_StockTransfers: transfer header/items/status history, lifecycle checks, rowversion, restrictive FKs and operation indexes.
+- 20260903022846_ReportingDashboard: reporting schema, two views, top-products procedure and sales/movement/purchase period indexes.
+- 20260903024210_OptimizeReportingQueries: covering columns on the unique sale-item index used by product ranking.
 
-All eight migrations execute from an empty SQL Server database in integration tests. EF reports no pending model changes.
+All ten migrations execute from an empty SQL Server database in integration tests. EF reports no pending model changes.
 
 ## Seed data
 
 Reference seed always ensures:
 
 - 4 system roles;
-- 22 permission definitions and Administrator mappings;
+- 23 permission definitions and Administrator mappings;
 - 3 stores: CENTRAL, NORTE and SUL;
 - one active CX-01 reference cash register per store;
 - version markers for one-time default module grants on existing operational roles.
@@ -144,25 +162,25 @@ The reference seed was applied after this phase and direct SQL confirmed exactly
 
 ## Authorization defaults
 
-- Administrador: all 22 permissions and global store scope;
-- Gerente: read/manage all four main registrations, inventory, purchasing, sales and cash within assigned stores;
+- Administrador: all 23 permissions and global store scope;
+- Gerente: read/manage all four main registrations, inventory, purchasing, sales and cash plus reporting within assigned stores;
 - Vendedor: categories/products and inventory read, customers read/manage, plus sales/cash read/manage within assigned stores;
 - Estoquista: categories/products read, products manage, suppliers read plus inventory and purchasing read/manage within assigned stores; no sales/cash permission.
 
-This phase adds only the four sales/cash policies; JWT and refresh-token semantics are unchanged. The versioned seed grants them once to existing Gerente and Vendedor roles, preserves later custom mappings and rotates security stamps of affected existing users.
+This phase adds `reports.read`; JWT and refresh-token semantics are unchanged. The versioned seed grants it once to existing Gerente roles, preserves later custom mappings and rotates security stamps of affected existing users.
 
 ## Tests
 
-80 tests pass:
+83 tests pass:
 
 - 45 unit tests for architecture boundaries, Store, Category, Product, party, stock, transfer, purchase, sale and cash invariants, validation, money/quantity rounding and lifecycle rules;
-- 35 integration tests against real SQL Server for migrations/from-zero execution, Identity/JWT/refresh/security behavior, registrations, inventory/transfers, purchase, sale/cancellation and cash atomicity/idempotency/authorization/store scope/SQL constraints.
+- 38 integration tests against real SQL Server for migrations/from-zero execution, Identity/JWT/refresh/security behavior, registrations, inventory/transfers, purchase, sale/cancellation, cash and reporting correctness/authorization/store scope/SQL assets.
 
 Integration tests create uniquely prefixed temporary databases and verify the prefix before deletion. GitHub Actions starts an ephemeral SQL Server Developer container for this suite.
 
 ## Required services
 
-- SQL Server is required for DbMigrator, API readiness, authentication, registration/inventory/transfer/purchase/sale/cash persistence and integration tests;
+- SQL Server is required for DbMigrator, API readiness, authentication, every current business module, reporting and integration tests;
 - Redis and RabbitMQ remain provisioned but unused by code;
 - Worker still has no business background workload;
 - frontend development expects API on localhost:5090 through the Vite proxy.
@@ -186,13 +204,14 @@ Integration tests create uniquely prefixed temporary databases and verify the pr
 - cancelling a sale preserves the original document and adds status history, paired stock returns and signed cash/payment refunds in the current open store session;
 - transfers require access to both stores; creation has no stock effect, dispatch removes origin stock and receipt adds destination stock in separate audited transactions;
 - cost permits four decimal places; sale price permits two; Domain rounding uses AwayFromZero and SQL precision matches;
-- no cache was added because these administration queries are indexed, inexpensive and require fresh reads;
-- no stored procedure or view was introduced without a concrete query benefit;
+- reporting reads SQL directly without cache; correctness and query plans remain visible before the cache phase;
+- daily sales and stock joins use SQL views, top-product ranking uses one parameterized procedure, and simpler movement/purchase aggregates remain LINQ/EF Core;
+- report periods are bounded to 366 UTC calendar days, rankings are bounded and inventory is paginated;
 - API never migrates or seeds;
 - tracked examples contain no working local secrets; `scripts/Initialize-LocalEnvironment.ps1` creates the ignored `.env`, while `scripts/Set-LocalEnvironment.ps1` prepares host-development variables without printing them;
 - Compose is explicitly local-only and is not a production deployment template; see [security.md](security.md).
 
-See [sales-flow.md](sales-flow.md), [cash-flow.md](cash-flow.md), [transfer-flow.md](transfer-flow.md), [purchase-flow.md](purchase-flow.md), [inventory-flow.md](inventory-flow.md), [authentication.md](authentication.md) and [architecture.md](architecture.md).
+See [reporting.md](reporting.md), [sales-flow.md](sales-flow.md), [cash-flow.md](cash-flow.md), [transfer-flow.md](transfer-flow.md), [purchase-flow.md](purchase-flow.md), [inventory-flow.md](inventory-flow.md), [authentication.md](authentication.md) and [architecture.md](architecture.md).
 
 ## Commands
 
@@ -202,6 +221,7 @@ Canonical commands and local demo setup are in the root README.md. Backend integ
 
 - customer/supplier documents validate normalized length, not Brazilian CPF/CNPJ check digits;
 - codes are unique within each resource, not globally across every resource;
+- reporting dates use UTC until store-specific time zones are modeled; the stock view contains persisted positions, while the operational inventory API can synthesize never-persisted zero positions;
 - frontend has compiler/lint/build gates, but no committed component or browser E2E suite exists yet; purchase/sale/cash integration is covered at the HTTP/SQL boundary, supplemented by documented manual browser checks when the local runtime is available;
 - Redis, RabbitMQ, Worker business paths, metrics export and a bundled observability UI remain pending;
 - role creation/deletion remains unsupported; the four system profiles are fixed;
@@ -210,33 +230,35 @@ Canonical commands and local demo setup are in the root README.md. Backend integ
 
 ## Validation status
 
-Validated on Windows on 2026-08-30 with .NET 10, Node/npm and local SQL Server Express:
+Validated on Windows on 2026-09-02 with .NET 10, Node/npm and local SQL Server Express:
 
 - dotnet restore StoreControl.sln: passed;
 - dotnet format StoreControl.sln --verify-no-changes --no-restore: passed after normalizing EF-generated line endings;
 - dotnet build StoreControl.sln --no-restore: passed with zero warnings and zero errors;
-- dotnet test StoreControl.sln --no-build against `Server=.\SQLEXPRESS` with integrated authentication: 80 passed, 0 failed (45 unit and 35 integration);
-- migration discovery and execution from an empty database through StockTransfers: passed in every integration-test fixture;
+- dotnet test StoreControl.sln --no-build against `Server=.\SQLEXPRESS` with integrated authentication: 83 passed, 0 failed (45 unit and 38 integration);
+- migration discovery and execution from an empty database through OptimizeReportingQueries: passed in every integration-test fixture;
 - `dotnet ef migrations has-pending-model-changes`: passed with no model drift;
 - idempotent migration SQL script generation: passed;
-- SaleCancellation and StockTransfers migrations applied to the local StoreControl database by DbMigrator: passed;
-- DbMigrator rerun: passed without duplicate reference registers; direct SQL reports 22 permissions, 3 CX-01 registers for 3 distinct stores and no artificial sale/session rows;
-- direct SQL role mappings: Administrador 22, Gerente 19, Vendedor 10 and Estoquista 9 effective default permission rows;
+- ReportingDashboard and OptimizeReportingQueries migrations applied to the local StoreControl database by DbMigrator: passed;
+- DbMigrator rerun: passed without duplicate reference registers; direct SQL reports 23 permissions, 3 CX-01 registers for 3 distinct stores and no artificial sale/session rows;
+- direct SQL role mappings: Administrador 23, Gerente 20, Vendedor 10 and Estoquista 9 effective default permission rows;
 - real-SQL sale tests: normal multi-item/multi-payment commit, exact idempotent replay, insufficient-stock rollback, simultaneous last-item contention, forced cross-module rollback, permission and store scope all passed;
 - real-SQL cash tests: idempotent open, signed entry/exit, physical expected balance, close/difference and complete ledger passed;
 - real-SQL cancellation tests: status/history preservation, exact replay, stock restoration, signed refund and cross-module rollback passed;
 - real-SQL transfer tests: no-effect creation, dispatch/receipt pairing, replay, pre-dispatch cancellation, both-store authorization and last-unit contention passed;
+- real-SQL reporting tests: finalized/cancelled sale totals, ranking procedure, view/index existence, period validation, permission and store scope passed;
 - all existing authentication, registration, inventory and purchasing suites remained green;
 - npm ci: passed with 0 reported vulnerabilities;
 - npm run typecheck: passed;
 - npm run lint: passed with zero warnings;
-- npm run build: passed, 132 modules transformed with transfer routes split into independent chunks and no size warning;
+- npm run build: passed, 134 modules transformed with reporting/new-sale/transfer routes split into independent chunks and no size warning;
 - npm audit --omit=dev: passed with 0 reported vulnerabilities;
 - dotnet list package --vulnerable --include-transitive: no vulnerable packages reported;
 - generated `.env` Compose interpolation/syntax: passed;
-- direct SQL on the local database confirmed both new migration IDs and all three transfer tables;
-- a live Vite/API/SQL Express environment rendered the real login route with no browser console warning/error; authenticated browser submission was not performed, while authenticated transfer/cancellation behavior was exercised by the HTTP/SQL integration suite.
+- direct SQL on the local database confirmed both reporting migration IDs, two views, the procedure and covering sale-item index columns;
+- SQL Server SHOWPLAN confirmed an index seek on the sales reporting index; representative high-cardinality timing remains a future operational measurement;
+- a live Vite/API/SQL Express environment rendered the real login route after the reporting route changes with no browser console warning/error; authenticated browser submission was not performed, while authenticated reporting behavior was exercised by the HTTP/SQL integration suite.
 
-The authoritative end-to-end behavior validation is the ASP.NET Core HTTP integration suite against freshly migrated SQL Server databases, not mocks. It authenticates real seeded users and verifies durable rows/rollback across sales, cancellations, payments, transfers, stock and cash.
+The authoritative end-to-end behavior validation is the ASP.NET Core HTTP integration suite against freshly migrated SQL Server databases, not mocks. It authenticates real seeded users and verifies durable rows/rollback across business writes plus reporting results, authorization and SQL assets.
 
 Docker image build, Nginx runtime configuration and container startup could not be executed. The Docker Desktop Linux engine pipe remains absent and `docker info` cannot connect to `npipe:////./pipe/dockerDesktopLinuxEngine`. This is the same host-level blocker recorded in the earlier phases; repairing or resetting Docker Desktop is outside repository scope. Compose interpolation and syntax pass with a generated environment, while image build and service health must be rerun after the daemon is available.

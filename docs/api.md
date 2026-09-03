@@ -103,3 +103,15 @@ The server sources current product prices and calculates every financial value. 
 - POST /api/cash/sessions/{cashSessionId}/close: `cash.manage`; declared physical cash and rowVersion.
 
 Open/manual idempotent replay returns a durable operation result. Duplicate open, stale rowversion, closed-session writes and cash-out beyond expected physical cash return 409.
+
+## Dashboard and reports
+
+All endpoints require `reports.read`, enforce the authenticated store scope and query SQL Server without Redis:
+
+- GET /api/dashboard?storeId=&date=: daily finalized sales, revenue, ticket, low stock, top products and seven-day evolution;
+- GET /api/reports/sales?fromDate=&toDate=&storeId=: sales totals, daily/store breakdowns and top products;
+- GET /api/reports/inventory?page=1&pageSize=20&search=&storeId=&belowMinimum=&sortBy=product&sortDirection=asc: paged persisted stock positions;
+- GET /api/reports/movements?fromDate=&toDate=&storeId=: inventory entries/exits grouped by movement type and store;
+- GET /api/reports/purchases?fromDate=&toDate=&storeId=: order and receipt amounts grouped by status, store and supplier.
+
+Dates are UTC calendar dates, inclusive at both query boundaries, and period reports accept at most 366 days. Inaccessible stores return 403. Invalid periods, paging or sorting return validation Problem Details 400. Cancelled sales do not contribute to commercial indicators.

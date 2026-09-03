@@ -40,6 +40,9 @@ StoreControl.Web is a separate React, TypeScript and Vite application. React Rou
     │   │   ├── CashOperationPage
     │   │   ├── CashHistoryPage / CashSessionDetailsPage
     │   │   └── cash service/types
+    │   ├── reporting/
+    │   │   ├── ReportsPage
+    │   │   └── reporting service/types
     │   └── system/SmokePage
     ├── routes/
     └── shared/
@@ -81,6 +84,7 @@ No browser storage contains tokens. Full page reloads therefore require refresh,
 - /cash/current;
 - /cash/history;
 - /cash/sessions/:cashSessionId;
+- /reports;
 - /system/smoke;
 - /access-denied.
 
@@ -112,7 +116,9 @@ ProtectedRoute handles authentication and PermissionRoute handles feature visibi
 - sale finalization retains one UUID across uncertain retries, while the server remains authoritative for price, stock, money and authorization.
 - transfer history with origin/destination/status filters, creation cart and detail lifecycle actions;
 - transfer create/dispatch/receive/cancel operations retain one UUID each across uncertain retries and expose rowversion conflicts without automatic overwrite;
+- business dashboard with store/date selection, daily sales/revenue/ticket, low-stock alerts, top products and seven-day evolution;
+- reporting workspace with period/store filters, sales evolution/ranking, paged stock position and movement/purchase breakdowns.
 
-The three transfer routes are loaded lazily so the operational screens do not inflate the main application bundle.
+Reports, new sale and the three transfer screens are loaded lazily where appropriate so complex operational screens do not inflate the initial application bundle.
 
 Vite proxies /api and /health to localhost:5090. Docker Nginx proxies the same paths to the API container, so cookies remain same-origin.

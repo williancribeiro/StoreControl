@@ -4,7 +4,7 @@ StoreControl é um laboratório de estudos que simula um sistema empresarial de 
 
 ## Estado atual
 
-A fundação, segurança, lojas, cadastros, estoque por produto/loja, compras/recebimentos, vendas/pagamentos, cancelamento auditado, caixa e transferências entre lojas estão implementados. Relatórios, cache e mensageria de negócio permanecem pendentes. O estado verificável está em [docs/project-state.md](docs/project-state.md).
+A fundação, segurança, lojas, cadastros, estoque por produto/loja, compras/recebimentos, vendas/pagamentos, cancelamento auditado, caixa, transferências, dashboard e relatórios estão implementados. Cache e mensageria de negócio permanecem pendentes. O estado verificável está em [docs/project-state.md](docs/project-state.md).
 
 ## Stack ativa
 
@@ -120,6 +120,7 @@ Para uma primeira leitura, comece pelo estado atual, siga para a arquitetura e e
 - [docs/purchase-flow.md](docs/purchase-flow.md): pedidos, recebimento, idempotência e integração com estoque;
 - [docs/sales-flow.md](docs/sales-flow.md): venda, pagamentos, transação, concorrência e idempotência;
 - [docs/cash-flow.md](docs/cash-flow.md): abertura, ledger, movimentações e fechamento;
+- [docs/reporting.md](docs/reporting.md): indicadores, relatórios, SQL e decisões de performance;
 - [docs/debugging-map.md](docs/debugging-map.md): caminhos de diagnóstico;
 - [docs/security.md](docs/security.md): limites de segurança e configuração local;
 - [docs/project-state.md](docs/project-state.md): estado, migrations e validações.

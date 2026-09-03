@@ -156,6 +156,18 @@ Creation must not have a stock reference. Dispatch uses `StockTransferDispatch` 
 
 For duplicate opening, inspect the filtered open-session index and `CashSessions.OperationId`. For stale entry/exit/close, compare the Base64 rowVersion with the SQL rowversion. Reconcile expected physical cash as Opening + CashIn - CashOut + cash-form SalePayment. Card/Pix/Voucher payments belong in the audit ledger but do not increase physical cash. A close and sale on the same session are serialized on the cash-session row.
 
+## Dashboard and reports
+
+    Browser dashboard or ReportsPage
+    → reportingService Axios request
+    → reports.read policy
+    → ReportingController
+    → ReportingService store-scope/date validation
+    → LINQ / reporting view / parameterized procedure
+    → SQL Server
+
+For a missing store, first compare the JWT store claims with `security.UserStoreRoles`; omitting `storeId` still means only accessible stores. For an unexpected sales total, query `reporting.vw_DailySales` and verify that only `Sales.Status=Finalized` rows contribute. Product ranking comes from `reporting.usp_TopSellingProducts`; compare its UTC half-open timestamps and store-ID parameter with the request. Stock reports use persisted rows from `reporting.vw_StockPosition`, while the operational inventory endpoint can also synthesize never-persisted zero positions. Redis is not on this path yet.
+
 ## Future asynchronous path
 
     API transaction

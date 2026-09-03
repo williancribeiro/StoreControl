@@ -54,6 +54,8 @@ Coverage currently includes:
 - sales/cash permission policies and store-scoped register visibility.
 - sale cancellation stock/cash restoration, exact idempotent replay, preserved history and rollback when a refund cannot be paid.
 - transfer creation without stock effect, dispatch/receipt pairing, pre-dispatch cancellation, idempotent transitions, both-store scope and concurrent last-unit dispatch.
+- dashboard/sales-report calculations from committed sales, exclusion of cancelled sales and stored-procedure ranking;
+- reporting permission, store scope, maximum-period validation, view/procedure creation and supporting indexes.
 
 Set STORECONTROL_TEST_DB_CONNECTION to a SQL Server connection with create/drop database permission. The connection's database name is replaced with a safe unique test name. `scripts/Set-LocalEnvironment.ps1` prepares this value from the ignored local `.env`. GitHub Actions starts SQL Server with a newly generated masked password for each run rather than storing a working credential in the workflow.
 
@@ -67,4 +69,4 @@ Current automated frontend gates are:
 - Oxlint with zero warnings;
 - Vite production build.
 
-An automated browser suite is still deferred. Manual browser validation in the main-registration phase covered category/product/customer/supplier creation, linked product edit, inactivation/reactivation, search, combined filter and pagination through the running Vite/API/SQL Server path. This phase loaded the real Vite/API/SQL Express login surface and checked browser console health; credential submission was not performed. Authenticated cancellation and transfer behavior is covered at the HTTP/SQL boundary. Direct SQL and integration assertions remain the authoritative persistence/transaction checks.
+An automated browser suite is still deferred. Manual browser validation in the main-registration phase covered category/product/customer/supplier creation, linked product edit, inactivation/reactivation, search, combined filter and pagination through the running Vite/API/SQL Server path. The reporting phase loaded the real Vite/API/SQL Express login surface after the routing changes and confirmed a clean browser console; credential submission was not performed. Authenticated dashboard, reports, cancellation and transfer behavior is covered at the HTTP/SQL boundary. Direct SQL and integration assertions remain the authoritative persistence/transaction checks.

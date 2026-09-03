@@ -114,6 +114,16 @@ Store transfer:
     → one transaction per dispatch or receipt
     → transfer status history + paired inventory ledger references
 
+Reporting read:
+
+    React dashboard/report filters
+    → Axios
+    → JWT reports.read policy
+    → ReportingController → IReportingService
+    → store-scope validation
+    → EF Core LINQ / reporting views / parameterized stored procedure
+    → SQL Server
+
 Foundation smoke:
 
     Authenticated browser → React SmokePage → GET /api/smoke → EF Core → SQL Server
@@ -135,6 +145,7 @@ Current schemas:
 - purchasing: purchase orders, historical items, receipts, receipt items and status history.
 - sales: finalized sales, historical items and exact payment splits;
 - cash: store registers, open/closed sessions and signed movements.
+- reporting: daily-sales/stock-position views and top-products stored procedure; no independent source-of-truth tables.
 
 ## Cross-cutting behavior
 
@@ -155,5 +166,5 @@ Current schemas:
 - [ADR 0003](adr/0003-transactional-sale-and-cash-ledger.md): transactional finalized sales and signed cash ledger.
 - [ADR 0004](adr/0004-audited-reversals-and-two-stage-transfers.md): audited sale reversals and two-stage store transfers.
 
-Redis and RabbitMQ remain provisioned but unused until a concrete cache or asynchronous workflow exists.
+Dashboard/reporting reads SQL Server directly. Redis and RabbitMQ remain provisioned but unused until a concrete cache or asynchronous workflow exists.
 Local security boundaries and production gaps are documented in [security.md](security.md).

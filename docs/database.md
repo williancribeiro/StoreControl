@@ -50,6 +50,12 @@ cash:
 - CashSessions: idempotent opening UUID, opener/closer, status, physical expected/declared/difference amounts and rowversion;
 - CashMovements: signed Opening/SalePayment/CashIn/CashOut/SaleRefund ledger, actor, correlation, reference, optional manual operation UUID and distinct original/reversed sale-payment links.
 
+reporting:
+
+- vw_DailySales: finalized sales grouped by UTC date and store, with count, gross, discount and net revenue;
+- vw_StockPosition: persisted balance joined to store, product and category with the low-stock expression;
+- usp_TopSellingProducts: bounded period/store ranking with quantity, gross item revenue and sale count.
+
 security:
 
 - Users, Roles, UserRoles, UserClaims, RoleClaims, UserLogins and UserTokens from ASP.NET Core Identity;
@@ -69,12 +75,14 @@ Normalized e-mail and normalized username are protected by filtered unique index
 - 20260830190812_SalesAndCash: creates sales/cash schemas, finalized sale/item/payment tables, register/session/signed-ledger tables, financial/lifecycle checks, restrictive relationships, rowversion and idempotency/concurrency indexes.
 - 20260830233557_SaleCancellation: adds sale rowversion/cancellation audit, status history, refund-session linkage and one-to-one signed payment reversals; existing finalized sales receive a history row.
 - 20260830234649_StockTransfers: adds transfer header/items/status history, lifecycle checks, restrictive relationships, rowversion and idempotency/query indexes.
+- 20260903022846_ReportingDashboard: adds the reporting schema, daily-sales and stock-position views, top-products procedure and period-query indexes.
+- 20260903024210_OptimizeReportingQueries: makes the unique sale-item index cover quantity and line subtotal for the ranking query.
 
 All migrations were validated from an empty database and in a generated idempotent SQL script.
 
 ## Seeds
 
-DbMigrator seeds system roles, 22 permission definitions, default mappings, CENTRAL/NORTE/SUL and one active CX-01 cash register per store idempotently. With the explicit demo switch it also ensures demo users plus 8 categories, 120 products, 30 customers, 12 suppliers, a coherent initial position/movement for every active product/store pair and 8 purchase orders (2 created, 6 pending). It does not seed artificial sales or cash sessions. Re-running does not duplicate data, reset passwords, overwrite existing master records, repeat initial movements, recreate purchase orders or duplicate registers.
+DbMigrator seeds system roles, 23 permission definitions, default mappings, CENTRAL/NORTE/SUL and one active CX-01 cash register per store idempotently. With the explicit demo switch it also ensures demo users plus 8 categories, 120 products, 30 customers, 12 suppliers, a coherent initial position/movement for every active product/store pair and 8 purchase orders (2 created, 6 pending). It does not seed artificial sales or cash sessions. Re-running does not duplicate data, reset passwords, overwrite existing master records, repeat initial movements, recreate purchase orders or duplicate registers.
 
 ## Concurrency and constraints
 
@@ -86,4 +94,4 @@ Application validation improves error messages, but SQL unique indexes, foreign 
 
 The connection key is ConnectionStrings:StoreControl. It must come from environment variables, local secrets or Compose. EF design-time commands also accept STORECONTROL_DB_CONNECTION.
 
-Future reporting and integration schemas will be introduced only with their modules. Views and stored procedures remain deferred until a query has a concrete benefit; current inventory, transfer, purchase, sales and cash queries remain understandable indexed EF Core SQL. Purchase receiving, sale finalization/cancellation, transfer transitions and cash mutation deliberately use parameterized SQL for SQL Server `UPDLOCK` root queries because EF LINQ has no equivalent lock hint.
+The reporting schema uses views for reusable read projections and one stored procedure for the bounded top-product ranking. Movement and purchase aggregates stay in LINQ because their translated SQL remains clear. Purchase receiving, sale finalization/cancellation, transfer transitions and cash mutation deliberately use parameterized SQL for SQL Server `UPDLOCK` root queries because EF LINQ has no equivalent lock hint.
