@@ -18,6 +18,8 @@ public sealed class StoreControlDbContext(DbContextOptions<StoreControlDbContext
 {
     internal DbSet<FoundationRecord> FoundationRecords => Set<FoundationRecord>();
 
+    internal DbSet<CacheRevision> CacheRevisions => Set<CacheRevision>();
+
     internal DbSet<DailySalesReportRow> DailySalesReportRows => Set<DailySalesReportRow>();
 
     internal DbSet<StockPositionReportRow> StockPositionReportRows => Set<StockPositionReportRow>();
@@ -88,5 +90,13 @@ public sealed class StoreControlDbContext(DbContextOptions<StoreControlDbContext
         modelBuilder.Entity<IdentityUserToken<Guid>>().ToTable("UserTokens", "security");
 
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(StoreControlDbContext).Assembly);
+
+        // These tables have transactional cache-generation triggers; direct OUTPUT is incompatible.
+        modelBuilder.Entity<Category>().ToTable(table => table.UseSqlOutputClause(false));
+        modelBuilder.Entity<Product>().ToTable(table => table.UseSqlOutputClause(false));
+        modelBuilder.Entity<Store>().ToTable(table => table.UseSqlOutputClause(false));
+        modelBuilder.Entity<StockBalance>().ToTable(table => table.UseSqlOutputClause(false));
+        modelBuilder.Entity<Sale>().ToTable(table => table.UseSqlOutputClause(false));
+        modelBuilder.Entity<SaleItem>().ToTable(table => table.UseSqlOutputClause(false));
     }
 }

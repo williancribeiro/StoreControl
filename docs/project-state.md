@@ -6,6 +6,8 @@ Last updated: 2026-09-04.
 
 Prompt 8 is complete. Prompt 9 is in progress: query inspection selected dashboard and unsearched category lists for Redis caching. The consistency, availability and validation plan is recorded in ADR 0005; implementation and new validation results are pending.
 
+Prompt 9 progress: `20260905004822_CacheGenerations` introduces two transactional generation rows and six dependency triggers. Backend build passed with zero warnings/errors; all 87 tests passed (45 unit, 42 real-SQL integration), including generation changes, rollback and the existing business concurrency suite. Redis cache integration is next.
+
 ## Implemented
 
 Foundation and security:

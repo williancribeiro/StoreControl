@@ -396,6 +396,8 @@ namespace StoreControl.Infrastructure.Persistence.Migrations
                     b.HasIndex("IsActive", "Name");
 
                     b.ToTable("Categories", "catalog");
+
+                    b.HasAnnotation("SqlServer:UseSqlOutputClause", false);
                 });
 
             modelBuilder.Entity("StoreControl.Domain.Catalog.Product", b =>
@@ -471,6 +473,8 @@ namespace StoreControl.Infrastructure.Persistence.Migrations
 
                             t.HasCheckConstraint("CK_Products_SalePrice_NonNegative", "[SalePrice] >= 0");
                         });
+
+                    b.HasAnnotation("SqlServer:UseSqlOutputClause", false);
                 });
 
             modelBuilder.Entity("StoreControl.Domain.Inventory.StockBalance", b =>
@@ -515,6 +519,8 @@ namespace StoreControl.Infrastructure.Persistence.Migrations
 
                             t.HasCheckConstraint("CK_StockBalances_QuantityOnHand_NonNegative", "[QuantityOnHand] >= 0");
                         });
+
+                    b.HasAnnotation("SqlServer:UseSqlOutputClause", false);
                 });
 
             modelBuilder.Entity("StoreControl.Domain.Inventory.StockMovement", b =>
@@ -1262,6 +1268,8 @@ namespace StoreControl.Infrastructure.Persistence.Migrations
 
                             t.HasCheckConstraint("CK_Sales_Total_Equation", "[TotalAmount] = [Subtotal] - [DiscountAmount] AND [TotalAmount] > 0");
                         });
+
+                    b.HasAnnotation("SqlServer:UseSqlOutputClause", false);
                 });
 
             modelBuilder.Entity("StoreControl.Domain.Sales.SaleItem", b =>
@@ -1321,6 +1329,8 @@ namespace StoreControl.Infrastructure.Persistence.Migrations
 
                             t.HasCheckConstraint("CK_SaleItems_UnitPrice_NonNegative", "[UnitPrice] >= 0");
                         });
+
+                    b.HasAnnotation("SqlServer:UseSqlOutputClause", false);
                 });
 
             modelBuilder.Entity("StoreControl.Domain.Sales.SalePayment", b =>
@@ -1441,6 +1451,8 @@ namespace StoreControl.Infrastructure.Persistence.Migrations
                     b.HasIndex("IsActive", "Name");
 
                     b.ToTable("Stores", "organization");
+
+                    b.HasAnnotation("SqlServer:UseSqlOutputClause", false);
                 });
 
             modelBuilder.Entity("StoreControl.Infrastructure.Identity.ApplicationRole", b =>
@@ -1695,6 +1707,22 @@ namespace StoreControl.Infrastructure.Persistence.Migrations
                         .IsUnique();
 
                     b.ToTable("UserStoreRoles", "security");
+                });
+
+            modelBuilder.Entity("StoreControl.Infrastructure.Persistence.Models.CacheRevision", b =>
+                {
+                    b.Property<string>("Name")
+                        .HasMaxLength(40)
+                        .HasColumnType("nvarchar(40)");
+
+                    b.Property<Guid>("Generation")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier")
+                        .HasDefaultValueSql("NEWID()");
+
+                    b.HasKey("Name");
+
+                    b.ToTable("CacheRevisions", "platform");
                 });
 
             modelBuilder.Entity("StoreControl.Infrastructure.Persistence.Models.DailySalesReportRow", b =>
