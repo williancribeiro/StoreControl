@@ -274,7 +274,7 @@ public sealed class RedisCacheTests(SqlServerApiFactory factory) : IClassFixture
         Assert.DoesNotContain(active.GetProperty("items").EnumerateArray(), item => item.GetProperty("code").GetString() == "CACHE-HTTP");
         var first = await client.GetFromJsonAsync<JsonElement>("/api/categories?page=1&pageSize=1&sortBy=code");
         var second = await client.GetFromJsonAsync<JsonElement>("/api/categories?page=2&pageSize=1&sortBy=code");
-        Assert.NotEqual(first.GetProperty("items")[0].GetProperty("id"), second.GetProperty("items")[0].GetProperty("id"));
+        Assert.NotEqual(first.GetProperty("items")[0].GetProperty("id").GetInt32(), second.GetProperty("items")[0].GetProperty("id").GetInt32());
         var searched = await client.GetFromJsonAsync<JsonElement>(path + "&search=CACHE-HTTP");
         Assert.Equal("Updated cached category", Assert.Single(searched.GetProperty("items").EnumerateArray()).GetProperty("name").GetString());
     }

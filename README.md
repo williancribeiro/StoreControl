@@ -4,7 +4,7 @@ StoreControl é um laboratório de estudos que simula um sistema empresarial de 
 
 ## Estado atual
 
-A fundação, segurança, lojas, cadastros, estoque por produto/loja, compras/recebimentos, vendas/pagamentos, cancelamento auditado, caixa, transferências, dashboard e relatórios estão implementados. Cache e mensageria de negócio permanecem pendentes. O estado verificável está em [docs/project-state.md](docs/project-state.md).
+A fundação, segurança, lojas, cadastros, estoque por produto/loja, compras/recebimentos, vendas/pagamentos, cancelamento auditado, caixa, transferências, dashboard, relatórios e cache Redis seletivo estão implementados. Mensageria de negócio permanece pendente. O estado verificável está em [docs/project-state.md](docs/project-state.md).
 
 ## Stack ativa
 
@@ -14,7 +14,8 @@ A fundação, segurança, lojas, cadastros, estoque por produto/loja, compras/re
 - React, TypeScript, Vite, React Router, Axios e React Hook Form;
 - Swagger/OpenAPI, Problem Details, Serilog, correlation ID e tracing OpenTelemetry inicial;
 - Docker Compose com SQL Server, Redis e RabbitMQ;
-- xUnit, integração com SQL Server real e GitHub Actions.
+- cache de dashboard/categorias com invalidação transacional, TTL, fallback SQL, métricas e traces;
+- xUnit, integração com SQL Server e Redis reais e GitHub Actions.
 
 ## Execução completa com Docker
 
@@ -80,7 +81,7 @@ Frontend:
 
 ## Build e testes
 
-Os testes de integração criam e removem um banco efêmero com prefixo StoreControl_IntegrationTests_. Informe uma conexão com permissão para criar bancos:
+Os testes de integração criam e removem um banco efêmero com prefixo StoreControl_IntegrationTests_. A suíte completa também exige Redis real: o carregador prepara `STORECONTROL_TEST_DB_CONNECTION` e `STORECONTROL_TEST_REDIS_CONNECTION`. Os testes de cache falham explicitamente se Redis não estiver configurado. O Redis de testes deve ser isolado; um caso cria e remove uma identidade ACL temporária para simular rejeição de gravações.
 
     .\scripts\Set-LocalEnvironment.ps1
     dotnet tool restore
@@ -121,6 +122,7 @@ Para uma primeira leitura, comece pelo estado atual, siga para a arquitetura e e
 - [docs/sales-flow.md](docs/sales-flow.md): venda, pagamentos, transação, concorrência e idempotência;
 - [docs/cash-flow.md](docs/cash-flow.md): abertura, ledger, movimentações e fechamento;
 - [docs/reporting.md](docs/reporting.md): indicadores, relatórios, SQL e decisões de performance;
+- [docs/caching.md](docs/caching.md): consultas cacheadas, TTL, invalidação SQL, configuração e indisponibilidade;
 - [docs/debugging-map.md](docs/debugging-map.md): caminhos de diagnóstico;
 - [docs/security.md](docs/security.md): limites de segurança e configuração local;
 - [docs/project-state.md](docs/project-state.md): estado, migrations e validações.

@@ -1,6 +1,6 @@
 # ADR 0005: selective Redis cache with transactional SQL generations
 
-Status: accepted for Prompt 9; implementation in progress.
+Status: implemented in Prompt 9.
 
 ## Selection before implementation
 

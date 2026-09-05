@@ -4,19 +4,7 @@ Last updated: 2026-09-04.
 
 ## Current phase
 
-Prompt 8 is complete. Prompt 9 is in progress: query inspection selected dashboard and unsearched category lists for Redis caching. The consistency, availability and validation plan is recorded in ADR 0005; implementation and new validation results are pending.
-
-Prompt 9 progress: `20260905004822_CacheGenerations` introduces two transactional generation rows and six dependency triggers. Backend build passed with zero warnings/errors; all 87 tests passed (45 unit, 42 real-SQL integration), including generation changes, rollback and the existing business concurrency suite. Redis cache integration is next.
-
-Redis infrastructure now includes a shared asynchronous connection, bounded timeouts, cache-aside with SQL fallback, validated options, traces/metrics and an optional `/health/cache` endpoint. Cache remains disabled by default. Query wiring and real-Redis integration tests are in progress; the infrastructure build and seven new key/options unit cases passed.
-
-Dashboard and unsearched category lists are now wired to Redis. All 106 tests passed (52 unit, 54 integration) with real SQL Server Express and authenticated Redis 8.2.9. Cache coverage includes expiry, corrupt payloads, stale-fill race, category/minimum/product changes, sale/cancellation, store scope, HTTP fallback/readiness and denied Redis writes. CI now starts authenticated ephemeral Redis. Docker/environment integration and final documentation are in progress.
-
-Validation finding before compatibility changes: generated idempotent scripts wrap raw CREATE VIEW/PROCEDURE/TRIGGER inside IF blocks. SQL Server requires these statements to start their own batch. This affects the pre-existing ReportingDashboard migration and the new cache triggers, although normal EF migration execution passes. The correction will isolate their fixed DDL in EXEC batches, without changing schema semantics, and add actual from-zero/twice script execution coverage.
-
-The DDL batch correction passed an actual SQL integration test that creates an empty database, executes the full idempotent script twice, rolls back the cache migration and reapplies it. Formatting was normalized. The pre-existing reporting script issue was reproduced before correction; no existing database schema or business semantics were changed by that compatibility edit.
-
-Docker Compose and the local environment loader now wire the API cache settings and generated Redis secret. Compose syntax/interpolation, secret-free loader checks and frontend install/typecheck/lint/build all passed. The local database was migrated and seeded twice successfully; SQL confirms both cache-generation rows and six triggers. Docker runtime remains blocked by the inaccessible Docker Desktop `sailor-ingest.sock` documented in docker.md.
+Prompt 9 is implemented: selective Redis cache for dashboard and unsearched category lists, transactional SQL invalidation, environment/Compose configuration, telemetry, real-service tests and documentation. Docker container runtime validation remains blocked by the host, as detailed below.
 
 ## Implemented
 
@@ -126,11 +114,26 @@ Reporting:
 - period/reporting indexes plus a covering sale-item index validated through SQL Server query plans;
 - React dashboard and reporting workspace with permission-aware navigation, filters and pagination;
 - real-SQL tests for calculations, cancellation exclusion, procedure/views/indexes, permission, store scope and period limits;
-- no Redis read/write in this phase.
+- period reports remain uncached; dashboard now uses optional Redis as described below.
+
+Caching:
+
+- query inspection selected dashboard (30-second TTL) and category lists without search (300-second TTL);
+- canonical keys include deployment prefix, schema version, SQL generation and normalized filters; dashboard includes effective UTC date and exact currently authorized store scope;
+- two SQL generation rows and six transaction-bound DML triggers invalidate sales, stock/minimum, product/store and category dependencies;
+- delayed fills and Redis outages cannot repopulate the generation created by a later committed write;
+- shared lazy Redis connection, bounded timeouts, no disconnected backlog, SQL fallback and no stale fallback for SQL failures;
+- JSON validation/repair, propagation of source errors/cancellation and safe handling of failed cache writes;
+- Debug hit/miss logs, unavailable/recovered transition logs, OpenTelemetry cache spans, event counters and Redis operation-duration metrics;
+- optional aggregate `/health/cache` separate from SQL readiness; HTTP cache-control prevents browser/proxy reuse of protected reporting/category responses;
+- authenticated local Redis with bounded memory, LRU eviction and expendable contents; no Redis dependency in Worker;
+- tests with actual SQL Server and Redis; CI provisions both with ephemeral credentials;
+- corrected a pre-existing reporting DDL batch issue discovered when executing idempotent scripts; full script now runs twice from zero and cache migration rollback/reapply is covered;
+- [caching.md](caching.md) and [ADR 0005](adr/0005-selective-redis-cache.md) describe dependencies, tradeoffs and operational behavior.
 
 ## Pending modules
 
-Redis cache integration, RabbitMQ producer/consumer integration and business Worker workloads.
+RabbitMQ producer/consumer integration and business Worker workloads. A bundled OTLP collector/observability UI remains pending.
 
 MFA, external identity providers, password-recovery e-mail and self-registration remain outside the current phase.
 
@@ -146,8 +149,9 @@ MFA, external identity providers, password-recovery e-mail and self-registration
 - 20260830234649_StockTransfers: transfer header/items/status history, lifecycle checks, rowversion, restrictive FKs and operation indexes.
 - 20260903022846_ReportingDashboard: reporting schema, two views, top-products procedure and sales/movement/purchase period indexes.
 - 20260903024210_OptimizeReportingQueries: covering columns on the unique sale-item index used by product ranking.
+- 20260905004822_CacheGenerations: two generation rows in platform.CacheRevisions, six dependency triggers and EF trigger compatibility.
 
-All ten migrations execute from an empty SQL Server database in integration tests. EF reports no pending model changes.
+All eleven migrations execute from an empty SQL Server database in integration tests. The complete idempotent script is executed twice; cache migration rollback/reapply is also covered. EF reports no pending model changes. Migration timestamps are UTC (the cache migration was generated on September 4 in America/Sao_Paulo, September 5 UTC).
 
 ## Seed data
 
@@ -183,17 +187,18 @@ This phase adds `reports.read`; JWT and refresh-token semantics are unchanged. T
 
 ## Tests
 
-83 tests pass:
+107 tests pass:
 
-- 45 unit tests for architecture boundaries, Store, Category, Product, party, stock, transfer, purchase, sale and cash invariants, validation, money/quantity rounding and lifecycle rules;
-- 38 integration tests against real SQL Server for migrations/from-zero execution, Identity/JWT/refresh/security behavior, registrations, inventory/transfers, purchase, sale/cancellation, cash and reporting correctness/authorization/store scope/SQL assets.
+- 52 unit tests for architecture boundaries, business invariants and cache keys/configuration;
+- 55 integration tests against real SQL Server, including 12 actual Redis cache cases, 4 transactional generation cases and one full idempotent script/down/up test, plus all prior security, business, concurrency and reporting coverage.
 
-Integration tests create uniquely prefixed temporary databases and verify the prefix before deletion. GitHub Actions starts an ephemeral SQL Server Developer container for this suite.
+Integration tests create uniquely prefixed temporary databases and verify the prefix before deletion. Each API factory uses its own expiring Redis key prefix. GitHub Actions starts ephemeral SQL Server Developer and authenticated Redis containers for this suite. Full validation requires STORECONTROL_TEST_DB_CONNECTION and STORECONTROL_TEST_REDIS_CONNECTION; tests do not silently skip Redis.
 
 ## Required services
 
 - SQL Server is required for DbMigrator, API readiness, authentication, every current business module, reporting and integration tests;
-- Redis and RabbitMQ remain provisioned but unused by code;
+- Redis is optional for API availability but required for the full cache integration suite; Compose/local loader enable cache, while bare application defaults leave it disabled;
+- RabbitMQ remains provisioned but unused by code;
 - Worker still has no business background workload;
 - frontend development expects API on localhost:5090 through the Vite proxy.
 
@@ -216,7 +221,8 @@ Integration tests create uniquely prefixed temporary databases and verify the pr
 - cancelling a sale preserves the original document and adds status history, paired stock returns and signed cash/payment refunds in the current open store session;
 - transfers require access to both stores; creation has no stock effect, dispatch removes origin stock and receipt adds destination stock in separate audited transactions;
 - cost permits four decimal places; sale price permits two; Domain rounding uses AwayFromZero and SQL precision matches;
-- reporting reads SQL directly without cache; correctness and query plans remain visible before the cache phase;
+- reporting SQL remains the source of truth; only dashboard and unsearched category lists use optional Redis after authorization and SQL generation checks;
+- transactional SQL generation invalidation avoids Redis I/O in business writes and survives outages, crashes and delayed fills;
 - daily sales and stock joins use SQL views, top-product ranking uses one parameterized procedure, and simpler movement/purchase aggregates remain LINQ/EF Core;
 - report periods are bounded to 366 UTC calendar days, rankings are bounded and inventory is paginated;
 - API never migrates or seeds;
@@ -235,12 +241,33 @@ Canonical commands and local demo setup are in the root README.md. Backend integ
 - codes are unique within each resource, not globally across every resource;
 - reporting dates use UTC until store-specific time zones are modeled; the stock view contains persisted positions, while the operational inventory API can synthesize never-persisted zero positions;
 - frontend has compiler/lint/build gates, but no committed component or browser E2E suite exists yet; purchase/sale/cash integration is covered at the HTTP/SQL boundary, supplemented by documented manual browser checks when the local runtime is available;
-- Redis, RabbitMQ, Worker business paths, metrics export and a bundled observability UI remain pending;
+- RabbitMQ, Worker business paths and a bundled observability UI remain pending; optional OTLP cache metrics/traces export is configured but no collector delivery was exercised locally;
+- dashboard invalidation is conservative across stores and introduces a shared generation write-lock point; there is no cold-miss coalescing or production-scale benchmark yet;
 - role creation/deletion remains unsupported; the four system profiles are fixed;
 - the supplied Compose still uses local HTTP and SQL `sa`; real deployment requires TLS, external secret management and least-privilege runtime/migration identities;
 - any old public sample value remains permanently public in Git history and must never be reused.
 
 ## Validation status
+
+Prompt 9 validated on Windows on 2026-09-04 (September 5 UTC), with .NET SDK 10.0.400, Node/npm, SQL Server Express and authenticated Redis 8.2.9:
+
+- restore, formatting verification and backend build: passed with zero build warnings/errors;
+- full suite: 107 passed, zero failed/skipped (52 unit, 55 integration), using actual SQL and Redis;
+- migration discovery, from-zero execution, idempotent script applied twice, cache rollback/reapply, no pending model changes and script generation: passed;
+- local DbMigrator and seed rerun twice: passed; direct SQL confirms two generation rows and six triggers;
+- frontend npm ci, typecheck, lint and production build: passed; npm reported zero vulnerabilities;
+- Compose environment interpolation/syntax and local secret-to-environment mapping: passed;
+- actual HTTP/SQL/Redis integration: cache behavior, warm write invalidation, scope/permissions, SQL fallback, degraded optional health and denied cache writes all passed;
+- temporary host API on a separate loopback port started successfully and returned Healthy for both Redis and SQL; it was stopped after verification. No new frontend contract or UI behavior was required for transparent backend caching;
+- one verification build encountered Windows DLL locks from the temporary API and concurrent EF tooling; after these exited, the backend build passed without warnings or errors;
+- the Windows validation Redis archive SHA-256 matched the publisher's release digest; binaries stay in ignored work/, not Git. Its temporary loopback server was stopped after the tests, with its PID/executable path verified; no system Redis service was installed;
+- no live OTLP collector, browser E2E or production-cardinality performance measurement is claimed;
+- manual stop/restart validation was blocked by automatic command review without a detailed reason; same-multiplexer reconnection after an actual server process restart remains unverified manually. Automated outage/fallback/freshness tests use unavailable and healthy connections;
+- remote Actions results were not inspected: the unauthenticated GitHub API returned 404. Successful pushes are verified independently.
+
+Docker build/start is blocked by the existing host failure: Docker Desktop cannot access/remove `AppData/Local/Docker/run/sailor-ingest.sock` during Ingest initialization, so `dockerDesktopLinuxEngine` never becomes available. No reset or volume deletion was performed. Real Redis/SQL testing is not represented as successful container validation. Rerun Compose build/start and service health once Docker is repaired.
+
+### Previous phase validation (Prompt 8)
 
 Validated on Windows on 2026-09-02 with .NET 10, Node/npm and local SQL Server Express:
 

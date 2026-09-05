@@ -1,6 +1,6 @@
 # Dashboard and reporting
 
-Status: implemented without cache.
+Status: implemented; dashboard has optional Redis cache since Prompt 9. Period reports remain uncached.
 
 ## Scope and authorization
 
@@ -56,4 +56,4 @@ SQL Server `SHOWPLAN_TEXT` on the local schema confirmed an index seek on the ne
 
 ## Cache decision
 
-Redis is not used in this phase. Correctness, authorization and query behavior are established first. A later cache-aside phase may cache dashboard/report responses only after defining store/date/filter-aware keys, TTL, invalidation and SQL fallback.
+Only the dashboard response is cached, for 30 seconds by default, using its effective UTC date and exact authorized store set. Store assignments and policies are enforced before every lookup. SQL generation triggers invalidate relevant writes, and Redis failures use the normal SQL queries. Period sales, inventory, movement and purchase reports remain uncached because of their varied filter space. See [caching.md](caching.md) for keys, transactional invalidation and performance tradeoffs.

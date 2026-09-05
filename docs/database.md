@@ -77,8 +77,9 @@ Normalized e-mail and normalized username are protected by filtered unique index
 - 20260830234649_StockTransfers: adds transfer header/items/status history, lifecycle checks, restrictive relationships, rowversion and idempotency/query indexes.
 - 20260903022846_ReportingDashboard: adds the reporting schema, daily-sales and stock-position views, top-products procedure and period-query indexes.
 - 20260903024210_OptimizeReportingQueries: makes the unique sale-item index cover quantity and line subtotal for the ranking query.
+- 20260905004822_CacheGenerations: two `platform.CacheRevisions` rows and six DML triggers for transactional dashboard/category invalidation; EF trigger-bearing tables disable direct OUTPUT while retaining generated identity/rowversion values.
 
-All migrations were validated from an empty database and in a generated idempotent SQL script.
+All eleven migrations were validated from an empty database, including executing the full idempotent SQL script twice. Cache migration rollback/reapply is tested. Fixed CREATE VIEW/PROCEDURE/TRIGGER DDL is wrapped in EXEC batches to support EF's conditional idempotent scripts. This also corrects the earlier reporting script's batch-compatibility problem without changing its schema definitions. Use `sqlcmd -I` when executing manually so QUOTED_IDENTIFIER is enabled for filtered indexes.
 
 ## Seeds
 
@@ -95,3 +96,5 @@ Application validation improves error messages, but SQL unique indexes, foreign 
 The connection key is ConnectionStrings:StoreControl. It must come from environment variables, local secrets or Compose. EF design-time commands also accept STORECONTROL_DB_CONNECTION.
 
 The reporting schema uses views for reusable read projections and one stored procedure for the bounded top-product ranking. Movement and purchase aggregates stay in LINQ because their translated SQL remains clear. Purchase receiving, sale finalization/cancellation, transfer transitions and cash mutation deliberately use parameterized SQL for SQL Server `UPDLOCK` root queries because EF LINQ has no equivalent lock hint.
+
+Cache-generation triggers perform only an indexed metadata update in the business transaction; they never contact Redis. Dependencies and the shared-generation write-contention tradeoff are documented in [caching.md](caching.md). Disabling these triggers or changing persisted data through an import that skips them violates the invalidation contract.

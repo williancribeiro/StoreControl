@@ -56,8 +56,15 @@ Coverage currently includes:
 - transfer creation without stock effect, dispatch/receipt pairing, pre-dispatch cancellation, idempotent transitions, both-store scope and concurrent last-unit dispatch.
 - dashboard/sales-report calculations from committed sales, exclusion of cancelled sales and stored-procedure ranking;
 - reporting permission, store scope, maximum-period validation, view/procedure creation and supporting indexes.
+- real Redis hit/miss/absolute TTL, malformed/missing/null payload repair, canceled/failed loader behavior and metrics/traces;
+- durable SQL generations, rollback, direct SQL writes and a delayed cache fill racing with a committed update;
+- warm dashboard after sales/cancellation/minimum/product changes, category filters/pagination/inactivation and store-scope/permission enforcement;
+- HTTP fallback with Redis unavailable, independent SQL readiness, safe failed Redis writes and generation-based freshness after using a healthy connection again;
+- full idempotent migration script execution twice on an empty SQL database, plus cache migration rollback/reapply.
 
 Set STORECONTROL_TEST_DB_CONNECTION to a SQL Server connection with create/drop database permission. The connection's database name is replaced with a safe unique test name. `scripts/Set-LocalEnvironment.ps1` prepares this value from the ignored local `.env`. GitHub Actions starts SQL Server with a newly generated masked password for each run rather than storing a working credential in the workflow.
+
+The full suite also requires `STORECONTROL_TEST_REDIS_CONNECTION` for an isolated real Redis server. The loader supplies it, and CI starts authenticated ephemeral Redis with a masked generated password. Cache integration tests fail explicitly when it is missing. All API factories use unique cache prefixes when Redis is configured, so existing business tests also run through cached reads. One test needs ACL SETUSER/DELUSER to create/remove its unique write-denied identity; use an isolated development/test Redis instance, not production. Entries expire naturally; tests never FLUSHDB or flush other prefixes. Unit tests additionally validate canonical keys, scope/date separation and configuration bounds.
 
 This phase uses a real configured SQL Server rather than Testcontainers so tests can run on the validation host even while its Docker daemon is unavailable. Testcontainers remains appropriate for later suites when the local Docker blocker is repaired.
 

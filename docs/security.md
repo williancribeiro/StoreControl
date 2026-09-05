@@ -30,6 +30,8 @@ These controls do not make the Compose file internet-ready. Port binds must not 
 - API responses carry defensive browser headers, and the Docker Web server adds a same-origin content security policy;
 - Swagger remains available only in the Development environment.
 
+Redis caching never stores credentials, access/refresh tokens, permission grants or user profiles. Dashboard store scope is resolved from SQL before every cache lookup, and category/reporting HTTP responses disallow browser/proxy storage. Generation/filter-aware keys isolate returned read models; prefixes must be deployment-specific. Only API receives Redis credentials in Compose. See [caching.md](caching.md) for invalidation and availability behavior.
+
 ## Deliberate local compromises
 
 Local Docker uses HTTP and disables `Secure` on the refresh cookie because there is no development certificate shared with the Web container. The local database connection uses `sa` and trusts the container certificate. These decisions are acceptable only with loopback-only ports and disposable development data.

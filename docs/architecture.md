@@ -121,7 +121,8 @@ Reporting read:
     → JWT reports.read policy
     → ReportingController → IReportingService
     → store-scope validation
-    → EF Core LINQ / reporting views / parameterized stored procedure
+    → dashboard: SQL generation → Redis hit, or SQL load and cache fill
+    → period reports: EF Core LINQ / reporting views / parameterized stored procedure
     → SQL Server
 
 Foundation smoke:
@@ -136,7 +137,7 @@ One StoreControlDbContext derives from IdentityDbContext and covers the transact
 
 Current schemas:
 
-- platform: foundation metadata;
+- platform: foundation metadata and two transactional cache generations;
 - security: Identity, permissions, store assignments and refresh sessions;
 - organization: stores.
 - catalog: categories and products;
@@ -165,6 +166,7 @@ Current schemas:
 - [ADR 0002](adr/0002-jwt-refresh-and-store-scoped-roles.md): JWT, refresh rotation and store-scoped roles.
 - [ADR 0003](adr/0003-transactional-sale-and-cash-ledger.md): transactional finalized sales and signed cash ledger.
 - [ADR 0004](adr/0004-audited-reversals-and-two-stage-transfers.md): audited sale reversals and two-stage store transfers.
+- [ADR 0005](adr/0005-selective-redis-cache.md): selective Redis cache and durable SQL generation invalidation.
 
-Dashboard/reporting reads SQL Server directly. Redis and RabbitMQ remain provisioned but unused until a concrete cache or asynchronous workflow exists.
+Dashboard and unsearched category lists use the Infrastructure Redis cache after authorization. Six SQL triggers invalidate their generation keys transactionally, including direct SQL writes. SQL remains required for authorization, generations, cache misses and every uncached business query. Redis never participates in stock or money integrity. Period reports remain uncached. RabbitMQ remains provisioned but unused.
 Local security boundaries and production gaps are documented in [security.md](security.md).

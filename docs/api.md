@@ -106,7 +106,7 @@ Open/manual idempotent replay returns a durable operation result. Duplicate open
 
 ## Dashboard and reports
 
-All endpoints require `reports.read`, enforce the authenticated store scope and query SQL Server without Redis:
+All endpoints require `reports.read` and enforce the authenticated store scope. Only dashboard responses use optional Redis; period reports query SQL directly:
 
 - GET /api/dashboard?storeId=&date=: daily finalized sales, revenue, ticket, low stock, top products and seven-day evolution;
 - GET /api/reports/sales?fromDate=&toDate=&storeId=: sales totals, daily/store breakdowns and top products;
@@ -115,3 +115,5 @@ All endpoints require `reports.read`, enforce the authenticated store scope and 
 - GET /api/reports/purchases?fromDate=&toDate=&storeId=: order and receipt amounts grouped by status, store and supplier.
 
 Dates are UTC calendar dates, inclusive at both query boundaries, and period reports accept at most 366 days. Inaccessible stores return 403. Invalid periods, paging or sorting return validation Problem Details 400. Cancelled sales do not contribute to commercial indicators.
+
+Dashboard and category-list JSON contracts are unchanged by caching. Category lists without search can use Redis after permission checks. Reporting and category HTTP responses use `Cache-Control: no-store`; internal Redis caching is described in [caching.md](caching.md). `GET /health/cache` reports optional-cache Healthy/Degraded with HTTP 200, independently from SQL readiness; its anonymous body contains only aggregate status.

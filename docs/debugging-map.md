@@ -166,7 +166,23 @@ For duplicate opening, inspect the filtered open-session index and `CashSessions
     → LINQ / reporting view / parameterized procedure
     → SQL Server
 
-For a missing store, first compare the JWT store claims with `security.UserStoreRoles`; omitting `storeId` still means only accessible stores. For an unexpected sales total, query `reporting.vw_DailySales` and verify that only `Sales.Status=Finalized` rows contribute. Product ranking comes from `reporting.usp_TopSellingProducts`; compare its UTC half-open timestamps and store-ID parameter with the request. Stock reports use persisted rows from `reporting.vw_StockPosition`, while the operational inventory endpoint can also synthesize never-persisted zero positions. Redis is not on this path yet.
+For a missing store, first compare the JWT store claims with `security.UserStoreRoles`; omitting `storeId` still means only accessible stores. For an unexpected sales total, query `reporting.vw_DailySales` and verify that only `Sales.Status=Finalized` rows contribute. Product ranking comes from `reporting.usp_TopSellingProducts`; compare its UTC half-open timestamps and store-ID parameter with the request. Stock reports use persisted rows from `reporting.vw_StockPosition`, while the operational inventory endpoint can also synthesize never-persisted zero positions. Dashboard can use Redis after store-scope validation; period reports still use SQL directly.
+
+## Redis cache
+
+    Browser DashboardPage / category list
+    → Axios → JWT/policy → service (dashboard resolves SQL store scope)
+    → RedisReadCache → platform.CacheRevisions
+    → Redis GET with generation/date/scope/filter key
+    → hit: deserialize response
+    → miss/fallback: original EF/view/procedure SQL reads
+    → successful miss: Redis SET with absolute TTL
+
+For an unexpected cached value, correlate the HTTP request with the `StoreControl.Cache` spans and Debug `CacheRegion`/`CacheOutcome` logs. Compare the normalized request inputs and current generation to the actual key observed with SCAN. Check TTL; a hit must not renew it. Authentication/store-scope and generation SQL queries are expected even on a hit.
+
+For an expected invalidation, inspect the committed generation and the dependency table's `TR_*_CacheRevision` trigger. A sale, receipt, adjustment or transfer changes the dashboard generation through its existing SQL writes. A failed transaction must leave both business data and generation unchanged. Old Redis keys may still exist until expiry but should no longer be selected. Direct imports must preserve trigger execution.
+
+For unavailability, compare `/health/cache` with `/health/ready`: optional Redis can be Degraded while SQL remains Healthy. Redis failures should increase fallback/write-failure counters, log one unavailable transition and keep SQL-backed reads available. A SQL failure must not be converted into a successful stale response. See [caching.md](caching.md) for configuration, metrics and the manual CLI commands.
 
 ## Future asynchronous path
 
