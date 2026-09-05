@@ -16,6 +16,8 @@ Validation finding before compatibility changes: generated idempotent scripts wr
 
 The DDL batch correction passed an actual SQL integration test that creates an empty database, executes the full idempotent script twice, rolls back the cache migration and reapplies it. Formatting was normalized. The pre-existing reporting script issue was reproduced before correction; no existing database schema or business semantics were changed by that compatibility edit.
 
+Docker Compose and the local environment loader now wire the API cache settings and generated Redis secret. Compose syntax/interpolation, secret-free loader checks and frontend install/typecheck/lint/build all passed. The local database was migrated and seeded twice successfully; SQL confirms both cache-generation rows and six triggers. Docker runtime remains blocked by the inaccessible Docker Desktop `sailor-ingest.sock` documented in docker.md.
+
 ## Implemented
 
 Foundation and security:

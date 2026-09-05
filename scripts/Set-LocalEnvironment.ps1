@@ -28,7 +28,7 @@ foreach ($line in Get-Content -LiteralPath $resolvedEnvironmentFile) {
     $localValues[$key] = $value
 }
 
-foreach ($requiredKey in @('MSSQL_SA_PASSWORD', 'JWT_SIGNING_KEY')) {
+foreach ($requiredKey in @('MSSQL_SA_PASSWORD', 'JWT_SIGNING_KEY', 'REDIS_PASSWORD')) {
     if (-not $localValues.ContainsKey($requiredKey) -or [string]::IsNullOrWhiteSpace($localValues[$requiredKey])) {
         throw "A variável obrigatória '$requiredKey' está ausente ou vazia."
     }
@@ -45,6 +45,22 @@ $testConnection = "Server=localhost,$sqlPort;Database=master;User Id=sa;Password
 [Environment]::SetEnvironmentVariable('STORECONTROL_TEST_DB_CONNECTION', $testConnection, 'Process')
 [Environment]::SetEnvironmentVariable('Authentication__Jwt__SigningKey', $localValues['JWT_SIGNING_KEY'], 'Process')
 [Environment]::SetEnvironmentVariable('Authentication__RefreshToken__CookieSecure', 'false', 'Process')
+
+$cachePort = if ($localValues.ContainsKey('REDIS_PORT')) { $localValues['REDIS_PORT'] } else { '6379' }
+$cacheConnection = "127.0.0.1:$cachePort,password=$($localValues['REDIS_PASSWORD'])"
+[Environment]::SetEnvironmentVariable('Cache__RedisConnection', $cacheConnection, 'Process')
+[Environment]::SetEnvironmentVariable('STORECONTROL_TEST_REDIS_CONNECTION', $cacheConnection, 'Process')
+$cacheSettings = @{
+    'CACHE_ENABLED' = @('Cache__Enabled', 'true')
+    'CACHE_KEY_PREFIX' = @('Cache__KeyPrefix', 'storecontrol:local')
+    'CACHE_DASHBOARD_TTL_SECONDS' = @('Cache__DashboardTtlSeconds', '30')
+    'CACHE_CATEGORIES_TTL_SECONDS' = @('Cache__CategoriesTtlSeconds', '300')
+    'CACHE_TIMEOUT_MILLISECONDS' = @('Cache__TimeoutMilliseconds', '500')
+}
+foreach ($setting in $cacheSettings.GetEnumerator()) {
+    $settingValue = if ($localValues.ContainsKey($setting.Key)) { $localValues[$setting.Key] } else { $setting.Value[1] }
+    [Environment]::SetEnvironmentVariable($setting.Value[0], $settingValue, 'Process')
+}
 
 $demoEnabled = if ($localValues.ContainsKey('SEED_DEMO_DATA')) { $localValues['SEED_DEMO_DATA'] } else { 'false' }
 $demoAdminPassword = if ($localValues.ContainsKey('DEMO_ADMIN_PASSWORD')) { $localValues['DEMO_ADMIN_PASSWORD'] } else { '' }

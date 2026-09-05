@@ -32,12 +32,11 @@ services:
       [
         "sh",
         "-c",
-        "exec redis-server --appendonly yes --requirepass \"$${REDIS_PASSWORD}\"",
+        "exec redis-server --save \"\" --appendonly no --maxmemory 128mb --maxmemory-policy allkeys-lru --requirepass \"$${REDIS_PASSWORD}\"",
       ]
     ports:
       - "127.0.0.1:${REDIS_PORT:-6379}:6379"
-    volumes:
-      - redis-data:/data
+    mem_limit: 256m
     healthcheck:
       test:
         [
@@ -99,6 +98,12 @@ services:
       Authentication__Jwt__SigningKey: ${JWT_SIGNING_KEY:?Execute scripts/Initialize-LocalEnvironment.ps1 antes de iniciar o Compose}
       Authentication__RefreshToken__CookieSecure: "false"
       AllowedHosts: localhost;127.0.0.1
+      Cache__Enabled: ${CACHE_ENABLED:-true}
+      Cache__RedisConnection: redis:6379,password=${REDIS_PASSWORD:?Execute scripts/Initialize-LocalEnvironment.ps1 antes de iniciar o Compose}
+      Cache__KeyPrefix: ${CACHE_KEY_PREFIX:-storecontrol:local}
+      Cache__DashboardTtlSeconds: ${CACHE_DASHBOARD_TTL_SECONDS:-30}
+      Cache__CategoriesTtlSeconds: ${CACHE_CATEGORIES_TTL_SECONDS:-300}
+      Cache__TimeoutMilliseconds: ${CACHE_TIMEOUT_MILLISECONDS:-500}
     ports:
       - "127.0.0.1:${API_PORT:-5090}:8080"
     depends_on:
@@ -123,8 +128,6 @@ services:
         condition: service_completed_successfully
       rabbitmq:
         condition: service_healthy
-      redis:
-        condition: service_healthy
     security_opt:
       - no-new-privileges:true
     networks:
@@ -145,7 +148,6 @@ services:
 
 volumes:
   sqlserver-data:
-  redis-data:
   rabbitmq-data:
 
 networks:

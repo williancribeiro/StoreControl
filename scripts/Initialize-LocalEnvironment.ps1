@@ -50,6 +50,11 @@ $lines = @(
     'RABBITMQ_DEFAULT_USER=storecontrol'
     "RABBITMQ_DEFAULT_PASS=$(New-StoreControlSecret -Prefix 'ScRabbit!9_')"
     "REDIS_PASSWORD=$(New-StoreControlSecret -Prefix 'ScRedis!9_')"
+    'CACHE_ENABLED=true'
+    'CACHE_KEY_PREFIX=storecontrol:local'
+    'CACHE_DASHBOARD_TTL_SECONDS=30'
+    'CACHE_CATEGORIES_TTL_SECONDS=300'
+    'CACHE_TIMEOUT_MILLISECONDS=500'
     "JWT_SIGNING_KEY=$(New-StoreControlSecret -Prefix 'ScJwt!9_' -ByteCount 48)"
     ''
     "SEED_DEMO_DATA=$demoEnabled"
