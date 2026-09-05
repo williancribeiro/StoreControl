@@ -10,6 +10,8 @@ Prompt 9 progress: `20260905004822_CacheGenerations` introduces two transactiona
 
 Redis infrastructure now includes a shared asynchronous connection, bounded timeouts, cache-aside with SQL fallback, validated options, traces/metrics and an optional `/health/cache` endpoint. Cache remains disabled by default. Query wiring and real-Redis integration tests are in progress; the infrastructure build and seven new key/options unit cases passed.
 
+Dashboard and unsearched category lists are now wired to Redis. All 106 tests passed (52 unit, 54 integration) with real SQL Server Express and authenticated Redis 8.2.9. Cache coverage includes expiry, corrupt payloads, stale-fill race, category/minimum/product changes, sale/cancellation, store scope, HTTP fallback/readiness and denied Redis writes. CI now starts authenticated ephemeral Redis. Docker/environment integration and final documentation are in progress.
+
 ## Implemented
 
 Foundation and security:

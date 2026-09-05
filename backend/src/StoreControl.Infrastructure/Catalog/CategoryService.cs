@@ -1,17 +1,22 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using StoreControl.Application.Catalog;
 using StoreControl.Application.Common;
 using StoreControl.Application.Common.Exceptions;
 using StoreControl.Domain.Catalog;
 using StoreControl.Infrastructure.Persistence;
+using StoreControl.Infrastructure.Caching;
 
 namespace StoreControl.Infrastructure.Catalog;
 
-internal sealed class CategoryService(StoreControlDbContext dbContext) : ICategoryService
+internal sealed class CategoryService(
+    StoreControlDbContext dbContext,
+    RedisReadCache cache,
+    IOptions<CacheOptions> cacheOptions) : ICategoryService
 {
     private static readonly string[] AllowedSorts = ["code", "name", "createdAt"];
 
-    public async Task<PagedResult<CategorySummary>> ListAsync(
+    public Task<PagedResult<CategorySummary>> ListAsync(
         CategoryQuery query,
         CancellationToken cancellationToken)
     {
@@ -21,6 +26,21 @@ internal sealed class CategoryService(StoreControlDbContext dbContext) : ICatego
             query.SortBy,
             AllowedSorts,
             query.SortDirection);
+        if (!string.IsNullOrWhiteSpace(query.Search))
+        {
+            return LoadListAsync(query, descending, cancellationToken);
+        }
+
+        var variant = FormattableString.Invariant(
+            $"{query.Page}|{query.PageSize}|{query.IsActive}|{query.SortBy.ToLowerInvariant()}|{descending}");
+        return cache.GetOrCreateAsync(
+            "categories", variant, cacheOptions.Value.CategoriesTtlSeconds,
+            token => LoadListAsync(query, descending, token), cancellationToken);
+    }
+
+    private async Task<PagedResult<CategorySummary>> LoadListAsync(
+        CategoryQuery query, bool descending, CancellationToken cancellationToken)
+    {
         var categories = dbContext.Categories.AsNoTracking();
 
         if (!string.IsNullOrWhiteSpace(query.Search))

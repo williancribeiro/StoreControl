@@ -20,18 +20,24 @@ public sealed class ReportingTests(SqlServerApiFactory factory) : IClassFixture<
             SqlServerApiFactory.AdminPassword);
         var context = await GetSalesContextAsync(client, "CENTRAL", 2);
         var session = await GetOrOpenSessionAsync(client, context.CashRegisterId);
+        var dashboardPath = $"/api/dashboard?storeId={context.StoreId}";
+        (await client.GetAsync(dashboardPath)).EnsureSuccessStatusCode();
         var includedSale = await CreateSaleAsync(
             client,
             context.StoreId,
             session.GetProperty("id").GetInt64(),
             context.Products[0],
             2m);
+        var afterFirstSale = await client.GetFromJsonAsync<JsonElement>(dashboardPath);
+        Assert.Equal(1, afterFirstSale.GetProperty("salesCount").GetInt64());
         var cancelledSale = await CreateSaleAsync(
             client,
             context.StoreId,
             session.GetProperty("id").GetInt64(),
             context.Products[1],
             1m);
+        var beforeCancellation = await client.GetFromJsonAsync<JsonElement>(dashboardPath);
+        Assert.Equal(2, beforeCancellation.GetProperty("salesCount").GetInt64());
         var cancellation = await SendWithIdempotencyAsync(
             client,
             $"/api/sales/{cancelledSale.GetProperty("id").GetInt64()}/cancellation",

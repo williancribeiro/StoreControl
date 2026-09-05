@@ -2,16 +2,21 @@ using System.Data;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using StoreControl.Application.Common;
 using StoreControl.Application.Common.Exceptions;
 using StoreControl.Application.Reporting;
 using StoreControl.Domain.Purchasing;
 using StoreControl.Domain.Security;
 using StoreControl.Infrastructure.Persistence;
+using StoreControl.Infrastructure.Caching;
 
 namespace StoreControl.Infrastructure.Reporting;
 
-internal sealed class ReportingService(StoreControlDbContext dbContext) : IReportingService
+internal sealed class ReportingService(
+    StoreControlDbContext dbContext,
+    RedisReadCache cache,
+    IOptions<CacheOptions> cacheOptions) : IReportingService
 {
     private const int MaximumPeriodDays = 366;
     private static readonly string[] InventorySorts =
@@ -24,6 +29,17 @@ internal sealed class ReportingService(StoreControlDbContext dbContext) : IRepor
     {
         var referenceDate = query.ReferenceDate ?? DateOnly.FromDateTime(DateTime.UtcNow);
         var storeIds = await GetScopedStoreIdsAsync(userId, query.StoreId, cancellationToken);
+        return await cache.GetOrCreateAsync(
+            "dashboard",
+            CacheKeys.Dashboard(referenceDate, query.StoreId, storeIds),
+            cacheOptions.Value.DashboardTtlSeconds,
+            token => LoadDashboardAsync(referenceDate, query.StoreId, storeIds, token),
+            cancellationToken);
+    }
+
+    private async Task<DashboardSummary> LoadDashboardAsync(
+        DateOnly referenceDate, int? requestedStoreId, int[] storeIds, CancellationToken cancellationToken)
+    {
         var firstEvolutionDate = referenceDate.AddDays(-6);
         var dailyRows = await dbContext.DailySalesReportRows
             .AsNoTracking()
@@ -74,7 +90,7 @@ internal sealed class ReportingService(StoreControlDbContext dbContext) : IRepor
 
         return new DashboardSummary(
             referenceDate,
-            query.StoreId,
+            requestedStoreId,
             saleCount,
             revenue,
             saleCount == 0 ? 0 : Money(revenue / saleCount),

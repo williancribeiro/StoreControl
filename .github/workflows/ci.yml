@@ -44,6 +44,25 @@ jobs:
           docker logs storecontrol-ci-sqlserver
           exit 1
 
+      - name: Start Redis with an ephemeral credential
+        shell: bash
+        run: |
+          set -euo pipefail
+          redis_password="ScCiRedis_$(openssl rand -hex 24)"
+          echo "::add-mask::$redis_password"
+          echo "STORECONTROL_TEST_REDIS_CONNECTION=127.0.0.1:6379,password=$redis_password" >> "$GITHUB_ENV"
+          docker run --detach --name storecontrol-ci-redis \
+            --env REDIS_PASSWORD="$redis_password" \
+            --publish 127.0.0.1:6379:6379 redis:8.2-alpine \
+            sh -c 'exec redis-server --save "" --appendonly no --requirepass "$REDIS_PASSWORD"'
+          for attempt in {1..15}; do
+            if docker exec storecontrol-ci-redis sh -c 'REDISCLI_AUTH="$REDIS_PASSWORD" redis-cli ping' | grep -q PONG; then
+              exit 0
+            fi
+            sleep 1
+          done
+          exit 1
+
       - name: Restore .NET tools
         run: dotnet tool restore
 

@@ -10,6 +10,7 @@ namespace StoreControl.Api.Controllers;
 [ApiController]
 [Route("api/categories")]
 [Authorize]
+[ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
 public sealed class CategoriesController(ICategoryService categoryService) : ControllerBase
 {
     [HttpGet]

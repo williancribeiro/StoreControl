@@ -47,12 +47,12 @@ internal sealed class RedisReadCache(
                 redis = await connection.GetDatabaseAsync(cancellationToken);
                 var payload = await redis.StringGetAsync(key).WaitAsync(
                     TimeSpan.FromMilliseconds(options.Value.TimeoutMilliseconds), cancellationToken);
-                telemetry.Available();
                 if (payload.HasValue)
                 {
                     var cached = JsonSerializer.Deserialize<T>(payload.ToString(), JsonOptions);
                     if (cached is not null)
                     {
+                        telemetry.Available();
                         telemetry.Record(region, "hit");
                         activity?.SetTag("cache.outcome", "hit");
                         return cached;
@@ -98,6 +98,7 @@ internal sealed class RedisReadCache(
         {
             await redis.StringSetAsync(key, serialized, TimeSpan.FromSeconds(ttlSeconds))
                 .WaitAsync(TimeSpan.FromMilliseconds(options.Value.TimeoutMilliseconds), cancellationToken);
+            telemetry.Available();
             telemetry.Record(region, "fill");
         }
         catch (Exception exception) when (exception is RedisException or TimeoutException)

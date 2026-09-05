@@ -9,6 +9,7 @@ namespace StoreControl.Api.Controllers;
 
 [ApiController]
 [Authorize(Policy = PermissionCodes.ReportsRead)]
+[ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
 public sealed class ReportingController(IReportingService reportingService) : ControllerBase
 {
     [HttpGet("api/dashboard")]

@@ -14,6 +14,7 @@ public sealed class SqlServerApiFactory : WebApplicationFactory<Program>, IAsync
     public const string UserPassword = "StoreControl_Test_User_2026!";
 
     private readonly string _connectionString = BuildConnectionString();
+    public string CachePrefix { get; } = $"storecontrol:test:{Guid.NewGuid():N}";
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
@@ -26,6 +27,10 @@ public sealed class SqlServerApiFactory : WebApplicationFactory<Program>, IAsync
         builder.UseSetting("Seed:DemoDataEnabled", "true");
         builder.UseSetting("Seed:AdminPassword", AdminPassword);
         builder.UseSetting("Seed:UserPassword", UserPassword);
+        var redisConnection = Environment.GetEnvironmentVariable("STORECONTROL_TEST_REDIS_CONNECTION");
+        builder.UseSetting("Cache:Enabled", (!string.IsNullOrWhiteSpace(redisConnection)).ToString());
+        builder.UseSetting("Cache:RedisConnection", redisConnection ?? string.Empty);
+        builder.UseSetting("Cache:KeyPrefix", CachePrefix);
     }
 
     public async Task InitializeAsync()
