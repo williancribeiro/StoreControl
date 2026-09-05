@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
@@ -29,7 +29,7 @@ namespace StoreControl.Infrastructure.Persistence.Migrations
             foreach (var (schema, table, region) in Dependencies)
             {
                 // Identifiers are migration-owned constants, never request input.
-                migrationBuilder.Sql($"""
+                var triggerSql = $"""
                     CREATE OR ALTER TRIGGER [{schema}].[TR_{table}_CacheRevision]
                     ON [{schema}].[{table}]
                     AFTER INSERT, UPDATE, DELETE
@@ -44,7 +44,9 @@ namespace StoreControl.Infrastructure.Persistence.Migrations
                         IF @@ROWCOUNT <> 1
                             THROW 51002, 'Required cache generation is missing.', 1;
                     END;
-                    """);
+                    """;
+                // EXEC gives CREATE TRIGGER its own batch in idempotent scripts as well as EF execution.
+                migrationBuilder.Sql("EXEC(N'" + triggerSql.Replace("'", "''", StringComparison.Ordinal) + "');");
             }
         }
 

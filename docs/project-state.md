@@ -12,6 +12,10 @@ Redis infrastructure now includes a shared asynchronous connection, bounded time
 
 Dashboard and unsearched category lists are now wired to Redis. All 106 tests passed (52 unit, 54 integration) with real SQL Server Express and authenticated Redis 8.2.9. Cache coverage includes expiry, corrupt payloads, stale-fill race, category/minimum/product changes, sale/cancellation, store scope, HTTP fallback/readiness and denied Redis writes. CI now starts authenticated ephemeral Redis. Docker/environment integration and final documentation are in progress.
 
+Validation finding before compatibility changes: generated idempotent scripts wrap raw CREATE VIEW/PROCEDURE/TRIGGER inside IF blocks. SQL Server requires these statements to start their own batch. This affects the pre-existing ReportingDashboard migration and the new cache triggers, although normal EF migration execution passes. The correction will isolate their fixed DDL in EXEC batches, without changing schema semantics, and add actual from-zero/twice script execution coverage.
+
+The DDL batch correction passed an actual SQL integration test that creates an empty database, executes the full idempotent script twice, rolls back the cache migration and reapplies it. Formatting was normalized. The pre-existing reporting script issue was reproduced before correction; no existing database schema or business semantics were changed by that compatibility edit.
+
 ## Implemented
 
 Foundation and security:

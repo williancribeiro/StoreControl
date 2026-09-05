@@ -221,7 +221,8 @@ public sealed class RedisCacheTests(SqlServerApiFactory factory) : IClassFixture
             configuration.Password = password;
             var options = Options.Create(new CacheOptions
             {
-                Enabled = true, KeyPrefix = factory.CachePrefix,
+                Enabled = true,
+                KeyPrefix = factory.CachePrefix,
                 RedisConnection = configuration.ToString(includePassword: true)
             });
             await using var restrictedConnection = new RedisConnection(options);
@@ -261,7 +262,9 @@ public sealed class RedisCacheTests(SqlServerApiFactory factory) : IClassFixture
         Assert.Equal(before.GetProperty("totalCount").GetInt32() + 1, after.GetProperty("totalCount").GetInt32());
         var updated = await client.PutAsJsonAsync($"/api/categories/{category.GetProperty("id").GetInt32()}", new
         {
-            code = "CACHE-HTTP", name = "Updated cached category", isActive = false,
+            code = "CACHE-HTTP",
+            name = "Updated cached category",
+            isActive = false,
             rowVersion = category.GetProperty("rowVersion").GetString()
         });
         updated.EnsureSuccessStatusCode();

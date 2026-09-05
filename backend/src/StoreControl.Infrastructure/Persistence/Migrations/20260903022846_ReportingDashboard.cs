@@ -37,7 +37,7 @@ namespace StoreControl.Infrastructure.Persistence.Migrations
                 descending: new[] { true, false, false })
                 .Annotation("SqlServer:Include", new[] { "TotalAmount" });
 
-            migrationBuilder.Sql(
+            ExecuteDdl(migrationBuilder,
                 """
                 CREATE OR ALTER VIEW [reporting].[vw_DailySales]
                 AS
@@ -53,7 +53,7 @@ namespace StoreControl.Infrastructure.Persistence.Migrations
                     GROUP BY [sale].[StoreId], CONVERT(date, [sale].[FinalizedAtUtc]);
                 """);
 
-            migrationBuilder.Sql(
+            ExecuteDdl(migrationBuilder,
                 """
                 CREATE OR ALTER VIEW [reporting].[vw_StockPosition]
                 AS
@@ -77,7 +77,7 @@ namespace StoreControl.Infrastructure.Persistence.Migrations
                     INNER JOIN [catalog].[Categories] AS [category] ON [category].[Id] = [product].[CategoryId];
                 """);
 
-            migrationBuilder.Sql(
+            ExecuteDdl(migrationBuilder,
                 """
                 CREATE OR ALTER PROCEDURE [reporting].[usp_TopSellingProducts]
                     @FromUtc datetime2(3),
@@ -118,6 +118,10 @@ namespace StoreControl.Infrastructure.Persistence.Migrations
                 END;
                 """);
         }
+
+        // CREATE VIEW/PROCEDURE must be the first statement, including inside idempotent script IF blocks.
+        private static void ExecuteDdl(MigrationBuilder migrationBuilder, string sql) =>
+            migrationBuilder.Sql("EXEC(N'" + sql.Replace("'", "''", StringComparison.Ordinal) + "');");
 
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
