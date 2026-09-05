@@ -1,10 +1,10 @@
 # Project state
 
-Last updated: 2026-09-02.
+Last updated: 2026-09-04.
 
 ## Current phase
 
-Prompt 8 is complete: dashboard and sales, inventory, movement and purchase reports are implemented across backend, frontend, SQL, tests and documentation.
+Prompt 8 is complete. Prompt 9 is in progress: query inspection selected dashboard and unsearched category lists for Redis caching. The consistency, availability and validation plan is recorded in ADR 0005; implementation and new validation results are pending.
 
 ## Implemented
 
