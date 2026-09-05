@@ -13,6 +13,7 @@ using StoreControl.Application.Parties;
 using StoreControl.Application.Security;
 using StoreControl.Infrastructure.Administration;
 using StoreControl.Infrastructure.Catalog;
+using StoreControl.Infrastructure.Caching;
 using StoreControl.Infrastructure.Cash;
 using StoreControl.Infrastructure.HealthChecks;
 using StoreControl.Infrastructure.Identity;
@@ -71,6 +72,14 @@ public static class DependencyInjection
         services.Configure<DemoSeedOptions>(
             configuration.GetSection(DemoSeedOptions.SectionName));
 
+        services.AddOptions<CacheOptions>()
+            .Bind(configuration.GetSection("Cache"))
+            .Validate(options => options.IsValid(), "Invalid Cache configuration; check enabled connection, prefix, TTLs and timeout.")
+            .ValidateOnStart();
+        services.AddSingleton<RedisConnection>();
+        services.AddSingleton<CacheTelemetry>();
+        services.AddScoped<RedisReadCache>();
+
         services.AddScoped<IDatabaseSmokeCheck, SqlServerDatabaseSmokeCheck>();
         services.AddScoped<IDatabaseSeeder, DatabaseSeeder>();
         services.AddScoped<MasterDataSeeder>();
@@ -93,7 +102,8 @@ public static class DependencyInjection
         services.AddScoped<ISaleService, SaleService>();
         services.AddScoped<IReportingService, ReportingService>();
         services.AddHealthChecks()
-            .AddCheck<SqlServerHealthCheck>("sqlserver", tags: ["ready"]);
+            .AddCheck<SqlServerHealthCheck>("sqlserver", tags: ["ready"])
+            .AddCheck<RedisHealthCheck>("redis", tags: ["cache"]);
 
         return services;
     }

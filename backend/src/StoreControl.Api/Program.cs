@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.OpenApi;
 using OpenTelemetry.Resources;
+using OpenTelemetry.Metrics;
 using OpenTelemetry.Trace;
 using Serilog;
 using Serilog.Formatting.Compact;
@@ -9,6 +10,7 @@ using StoreControl.Api.HealthChecks;
 using StoreControl.Api.Middleware;
 using StoreControl.Api.Security;
 using StoreControl.Infrastructure;
+using StoreControl.Infrastructure.Caching;
 
 Log.Logger = new LoggerConfiguration()
     .WriteTo.Console(new CompactJsonFormatter())
@@ -83,13 +85,17 @@ try
         .AddOpenTelemetry()
         .ConfigureResource(resource => resource.AddService("StoreControl.Api"))
         .WithTracing(tracing => tracing
+            .AddSource(CacheTelemetry.SourceName)
             .AddAspNetCoreInstrumentation()
-            .AddHttpClientInstrumentation());
+            .AddHttpClientInstrumentation())
+        .WithMetrics(metrics => metrics.AddMeter(CacheTelemetry.SourceName));
 
     var otlpEndpoint = builder.Configuration["OpenTelemetry:OtlpEndpoint"];
     if (Uri.TryCreate(otlpEndpoint, UriKind.Absolute, out var endpoint))
     {
         telemetryBuilder.WithTracing(tracing => tracing.AddOtlpExporter(options =>
+            options.Endpoint = endpoint));
+        telemetryBuilder.WithMetrics(metrics => metrics.AddOtlpExporter(options =>
             options.Endpoint = endpoint));
     }
 
@@ -117,6 +123,11 @@ try
     app.UseAuthorization();
 
     app.MapControllers();
+    app.MapHealthChecks("/health/cache", new HealthCheckOptions
+    {
+        Predicate = registration => registration.Tags.Contains("cache"),
+        ResponseWriter = HealthCheckResponseWriter.WriteAsync
+    });
     app.MapHealthChecks("/health/live", new HealthCheckOptions
     {
         Predicate = _ => false,

@@ -16,6 +16,7 @@
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
     <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" />
+    <PackageReference Include="StackExchange.Redis" />
   </ItemGroup>
 
   <PropertyGroup>
@@ -23,5 +24,10 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
   </PropertyGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="StoreControl.UnitTests" />
+    <InternalsVisibleTo Include="StoreControl.IntegrationTests" />
+  </ItemGroup>
 
 </Project>

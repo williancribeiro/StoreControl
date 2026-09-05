@@ -8,6 +8,8 @@ Prompt 8 is complete. Prompt 9 is in progress: query inspection selected dashboa
 
 Prompt 9 progress: `20260905004822_CacheGenerations` introduces two transactional generation rows and six dependency triggers. Backend build passed with zero warnings/errors; all 87 tests passed (45 unit, 42 real-SQL integration), including generation changes, rollback and the existing business concurrency suite. Redis cache integration is next.
 
+Redis infrastructure now includes a shared asynchronous connection, bounded timeouts, cache-aside with SQL fallback, validated options, traces/metrics and an optional `/health/cache` endpoint. Cache remains disabled by default. Query wiring and real-Redis integration tests are in progress; the infrastructure build and seven new key/options unit cases passed.
+
 ## Implemented
 
 Foundation and security:
