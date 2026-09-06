@@ -22,11 +22,21 @@ internal sealed class RabbitMqPublisher(
         activity?.SetTag("messaging.rabbitmq.destination.routing_key", message.RoutingKey);
         activity?.SetTag("messaging.message.id", message.Id);
 
-        var properties = CreateProperties(
-            message.Id, message.Type, message.CorrelationId, message.OccurredAtUtc, retryCount: 0, activity);
-        await PublishAsync(
-            topology.EventsExchange, message.RoutingKey, properties,
-            Encoding.UTF8.GetBytes(message.Payload), cancellationToken);
+        try
+        {
+            var properties = CreateProperties(
+                message.Id, message.Type, message.CorrelationId, message.OccurredAtUtc, retryCount: 0, activity);
+            await PublishAsync(
+                topology.EventsExchange, message.RoutingKey, properties,
+                Encoding.UTF8.GetBytes(message.Payload), cancellationToken);
+            activity?.SetStatus(ActivityStatusCode.Ok);
+        }
+        catch (Exception exception)
+        {
+            activity?.SetTag("error.type", exception.GetType().FullName);
+            activity?.SetStatus(ActivityStatusCode.Error);
+            throw;
+        }
     }
 
     public async Task PublishAsync(
@@ -36,17 +46,18 @@ internal sealed class RabbitMqPublisher(
         ReadOnlyMemory<byte> body,
         CancellationToken cancellationToken)
     {
+        var started = Stopwatch.GetTimestamp();
         await _gate.WaitAsync(cancellationToken);
         try
         {
             var channel = await GetChannelAsync(cancellationToken);
             await channel.BasicPublishAsync(
                 exchange, routingKey, mandatory: true, properties, body, cancellationToken);
-            MessagingTelemetry.RecordPublication("confirmed");
+            MessagingTelemetry.RecordPublication("confirmed", started);
         }
         catch
         {
-            MessagingTelemetry.RecordPublication("failed");
+            MessagingTelemetry.RecordPublication("failed", started);
             await ResetChannelAsync();
             throw;
         }

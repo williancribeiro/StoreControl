@@ -27,14 +27,25 @@ internal static class RabbitMessageHeaders
     {
         var traceParent = Utf8Header(properties, "traceparent");
         var traceState = Utf8Header(properties, "tracestate");
-        return ParentContext(traceParent, traceState);
+        return ParseParentContext(traceParent, traceState, isRemote: true);
     }
 
     public static ActivityContext ParentContext(string? traceParent, string? traceState)
+        => ParseParentContext(traceParent, traceState, isRemote: false);
+
+    private static ActivityContext ParseParentContext(string? traceParent, string? traceState, bool isRemote)
     {
-        return ActivityContext.TryParse(traceParent, traceState, out var context)
-            ? context
-            : default;
+        if (!ActivityContext.TryParse(traceParent, traceState, out var context))
+        {
+            return default;
+        }
+
+        return new ActivityContext(
+            context.TraceId,
+            context.SpanId,
+            context.TraceFlags,
+            context.TraceState,
+            isRemote);
     }
 
     private static string? Utf8Header(IReadOnlyBasicProperties properties, string name)

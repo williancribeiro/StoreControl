@@ -66,6 +66,25 @@ public sealed class MessagingConfigurationTests
         Assert.Equal("00f067aa0ba902b7", context.SpanId.ToString());
         Assert.True(context.TraceFlags.HasFlag(ActivityTraceFlags.Recorded));
         Assert.Equal(traceState, context.TraceState);
+        Assert.False(context.IsRemote);
+    }
+
+    [Fact]
+    public void Broker_w3c_context_is_marked_as_remote_for_the_consumer()
+    {
+        const string traceParent = "00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01";
+        var properties = new BasicProperties
+        {
+            Headers = new Dictionary<string, object?>
+            {
+                ["traceparent"] = System.Text.Encoding.UTF8.GetBytes(traceParent)
+            }
+        };
+
+        var context = RabbitMessageHeaders.ParentContext(properties);
+
+        Assert.True(context.IsRemote);
+        Assert.Equal("4bf92f3577b34da6a3ce929d0e0e4736", context.TraceId.ToString());
     }
 
     private static MessagingOptions CreateValidOptions(

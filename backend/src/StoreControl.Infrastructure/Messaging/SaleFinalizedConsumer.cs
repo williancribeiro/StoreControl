@@ -88,11 +88,14 @@ internal sealed class SaleFinalizedConsumer(
     {
         Guid messageId = default;
         int retryCount = 0;
+        var started = Stopwatch.GetTimestamp();
+        Activity? activity = null;
+        IDisposable? logScope = null;
         try
         {
             messageId = ParseEnvelope(delivery.BasicProperties);
             retryCount = RabbitMessageHeaders.RetryCount(delivery.BasicProperties);
-            using var activity = MessagingTelemetry.Activities.StartActivity(
+            activity = MessagingTelemetry.Activities.StartActivity(
                 $"{topology.SaleFinalizedQueue} process",
                 ActivityKind.Consumer,
                 RabbitMessageHeaders.ParentContext(delivery.BasicProperties));
@@ -100,7 +103,7 @@ internal sealed class SaleFinalizedConsumer(
             activity?.SetTag("messaging.destination.name", topology.SaleFinalizedQueue);
             activity?.SetTag("messaging.message.id", messageId);
             activity?.SetTag("messaging.message.retry_count", retryCount);
-            using var logScope = logger.BeginScope(new Dictionary<string, object?>
+            logScope = logger.BeginScope(new Dictionary<string, object?>
             {
                 ["CorrelationId"] = delivery.BasicProperties.CorrelationId ?? messageId.ToString("D"),
                 ["MessageId"] = messageId,
@@ -112,7 +115,9 @@ internal sealed class SaleFinalizedConsumer(
             var processor = scope.ServiceProvider.GetRequiredService<SaleFinalizedProcessor>();
             var outcome = await processor.ProcessAsync(messageId, delivery.Body, stoppingToken);
             await channel.BasicAckAsync(delivery.DeliveryTag, multiple: false, stoppingToken);
-            MessagingTelemetry.RecordDelivery(outcome == SaleFinalizedProcessingOutcome.Duplicate ? "duplicate" : "processed");
+            var telemetryOutcome = outcome == SaleFinalizedProcessingOutcome.Duplicate ? "duplicate" : "processed";
+            MessagingTelemetry.RecordDelivery(telemetryOutcome, started);
+            activity?.SetStatus(ActivityStatusCode.Ok);
             logger.LogInformation(
                 "Sale event {MessageId} processed with outcome {Outcome} on attempt {Attempt}",
                 messageId,
@@ -125,8 +130,10 @@ internal sealed class SaleFinalizedConsumer(
         }
         catch (PermanentMessageException exception)
         {
+            activity?.SetTag("error.type", exception.GetType().FullName);
+            activity?.SetStatus(ActivityStatusCode.Error);
             await channel.BasicRejectAsync(delivery.DeliveryTag, requeue: false, stoppingToken);
-            MessagingTelemetry.RecordDelivery("dead_lettered");
+            MessagingTelemetry.RecordDelivery("dead_lettered", started);
             logger.LogWarning(
                 exception,
                 "Sale event {MessageId} was rejected as permanent and routed to the DLQ",
@@ -134,7 +141,15 @@ internal sealed class SaleFinalizedConsumer(
         }
         catch (Exception exception)
         {
-            await HandleTransientFailureAsync(channel, delivery, messageId, retryCount, exception, stoppingToken);
+            activity?.SetTag("error.type", exception.GetType().FullName);
+            activity?.SetStatus(ActivityStatusCode.Error);
+            await HandleTransientFailureAsync(
+                channel, delivery, messageId, retryCount, exception, started, stoppingToken);
+        }
+        finally
+        {
+            logScope?.Dispose();
+            activity?.Dispose();
         }
     }
 
@@ -144,12 +159,13 @@ internal sealed class SaleFinalizedConsumer(
         Guid messageId,
         int retryCount,
         Exception exception,
+        long started,
         CancellationToken cancellationToken)
     {
         if (retryCount >= _options.RetryDelaysMilliseconds.Length)
         {
             await channel.BasicRejectAsync(delivery.DeliveryTag, requeue: false, cancellationToken);
-            MessagingTelemetry.RecordDelivery("retries_exhausted");
+            MessagingTelemetry.RecordDelivery("retries_exhausted", started);
             logger.LogError(
                 exception,
                 "Sale event {MessageId} exhausted {RetryCount} retries and was routed to the DLQ",
@@ -158,9 +174,10 @@ internal sealed class SaleFinalizedConsumer(
             return;
         }
 
+        Activity? publishActivity = null;
         try
         {
-            using var publishActivity = MessagingTelemetry.Activities.StartActivity(
+            publishActivity = MessagingTelemetry.Activities.StartActivity(
                 $"{topology.RetryExchange} publish",
                 ActivityKind.Producer);
             var properties = RabbitMqPublisher.CreateProperties(
@@ -177,7 +194,8 @@ internal sealed class SaleFinalizedConsumer(
                 delivery.Body,
                 cancellationToken);
             await channel.BasicAckAsync(delivery.DeliveryTag, multiple: false, cancellationToken);
-            MessagingTelemetry.RecordDelivery("retry_scheduled");
+            publishActivity?.SetStatus(ActivityStatusCode.Ok);
+            MessagingTelemetry.RecordDelivery("retry_scheduled", started);
             logger.LogWarning(
                 exception,
                 "Sale event {MessageId} scheduled for retry {RetryCount} after {DelayMilliseconds} ms",
@@ -191,6 +209,8 @@ internal sealed class SaleFinalizedConsumer(
         }
         catch (Exception retryException)
         {
+            publishActivity?.SetTag("error.type", retryException.GetType().FullName);
+            publishActivity?.SetStatus(ActivityStatusCode.Error);
             await channel.BasicNackAsync(
                 delivery.DeliveryTag,
                 multiple: false,
@@ -200,6 +220,10 @@ internal sealed class SaleFinalizedConsumer(
                 retryException,
                 "Retry publication failed for sale event {MessageId}; original delivery was requeued",
                 messageId);
+        }
+        finally
+        {
+            publishActivity?.Dispose();
         }
     }
 
