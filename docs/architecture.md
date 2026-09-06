@@ -20,7 +20,7 @@ StoreControl is a modular monolith. API, Worker and DbMigrator are separate comp
 - Application: use-case contracts, response models, exceptions and meaningful infrastructure ports.
 - Infrastructure: EF Core, SQL Server, Identity entities, session persistence, seeding and administration implementations.
 - Api: controllers, JWT issuing and validation, policies, middleware, OpenAPI and Problem Details.
-- Worker: future Outbox and consumers; it still has no simulated business workload.
+- Worker: RabbitMQ sale-event consumer, retry/DLQ coordination and idempotent post-sale audit.
 - DbMigrator: the only startup process that applies migrations and reference/demo seeds.
 - StoreControl.Web: separate React application using HTTP contracts.
 
@@ -94,7 +94,14 @@ Sale finalization:
     → SaleService locks the open cash-session root
     → Sale + StockBalance + CashSession Domain rules
     → one SQL transaction
-    → sales rows + inventory exit ledger + cash payment ledger
+    → sales rows + inventory exit ledger + cash payment ledger + integration Outbox
+
+Asynchronous post-sale processing:
+
+    API OutboxDispatcher → leased Outbox row → confirmed RabbitMQ publish
+    → sale-finalized queue → Worker manual-ack consumer
+    → serializable Inbox + simulated receipt-delivery transaction → ack
+    → transient failure: confirmed TTL retry; permanent/exhausted failure: DLQ
 
 Cash operation:
 
@@ -147,6 +154,7 @@ Current schemas:
 - sales: finalized sales, historical items and exact payment splits;
 - cash: store registers, open/closed sessions and signed movements.
 - reporting: daily-sales/stock-position views and top-products stored procedure; no independent source-of-truth tables.
+- integration: transactional Outbox, consumer Inbox and simulated receipt-delivery audit.
 
 ## Cross-cutting behavior
 
@@ -167,6 +175,7 @@ Current schemas:
 - [ADR 0003](adr/0003-transactional-sale-and-cash-ledger.md): transactional finalized sales and signed cash ledger.
 - [ADR 0004](adr/0004-audited-reversals-and-two-stage-transfers.md): audited sale reversals and two-stage store transfers.
 - [ADR 0005](adr/0005-selective-redis-cache.md): selective Redis cache and durable SQL generation invalidation.
+- [ADR 0006](adr/0006-transactional-outbox-and-sale-integration.md): post-sale event, transactional Outbox and at-least-once RabbitMQ delivery.
 
-Dashboard and unsearched category lists use the Infrastructure Redis cache after authorization. Six SQL triggers invalidate their generation keys transactionally, including direct SQL writes. SQL remains required for authorization, generations, cache misses and every uncached business query. Redis never participates in stock or money integrity. Period reports remain uncached. RabbitMQ remains provisioned but unused.
+Dashboard and unsearched category lists use the Infrastructure Redis cache after authorization. Six SQL triggers invalidate their generation keys transactionally, including direct SQL writes. SQL remains required for authorization, generations, cache misses and every uncached business query. Redis never participates in stock or money integrity. Period reports remain uncached. RabbitMQ processes only post-commit sale integration; it never establishes sale, stock, payment or cash integrity.
 Local security boundaries and production gaps are documented in [security.md](security.md).

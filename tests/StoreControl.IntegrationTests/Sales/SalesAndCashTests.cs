@@ -95,6 +95,18 @@ public sealed class SalesAndCashTests(SqlServerApiFactory factory) : IClassFixtu
         Assert.Equal(sale.GetProperty("id").GetInt64(), integrationEvent.SaleId);
         Assert.Equal(total, integrationEvent.TotalAmount);
 
+        var outboxStore = scope.ServiceProvider.GetRequiredService<OutboxStore>();
+        var claimed = await outboxStore.ClaimAsync(200, TimeSpan.FromSeconds(10), default);
+        var claimedSaleEvent = Assert.Single(claimed, item => item.Id == operationId);
+        Assert.NotNull(claimedSaleEvent.LockId);
+        Assert.Equal(1, claimedSaleEvent.PublishAttempts);
+        await outboxStore.MarkFailedAsync(claimedSaleEvent, new TimeoutException("broker unavailable"), default);
+        var rescheduled = await dbContext.OutboxMessages.AsNoTracking().SingleAsync(item => item.Id == operationId);
+        Assert.Null(rescheduled.LockId);
+        Assert.Null(rescheduled.LockedUntilUtc);
+        Assert.Contains(nameof(TimeoutException), rescheduled.LastError);
+        Assert.True(rescheduled.NextAttemptAtUtc > rescheduled.CreatedAtUtc);
+
         var eventBody = System.Text.Encoding.UTF8.GetBytes(outbox.Payload);
         var processor = scope.ServiceProvider.GetRequiredService<SaleFinalizedProcessor>();
         Assert.Equal(

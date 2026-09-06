@@ -48,7 +48,11 @@ public sealed class RabbitMqFlowTests(RabbitMqApiFactory factory) : IClassFixtur
 
         var deadLetter = await WaitForDeadLetterAsync(poisonId);
         Assert.Equal(3, RabbitMessageHeaders.RetryCount(deadLetter.BasicProperties));
-        Assert.False(deadLetter.Redelivered);
+
+        var malformedId = Guid.NewGuid();
+        await PublishAsync(malformedId, "not-json"u8.ToArray());
+        var malformedDeadLetter = await WaitForDeadLetterAsync(malformedId);
+        Assert.Equal(0, RabbitMessageHeaders.RetryCount(malformedDeadLetter.BasicProperties));
 
         await using (var scope = factory.Services.CreateAsyncScope())
         {

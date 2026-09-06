@@ -184,13 +184,15 @@ For an expected invalidation, inspect the committed generation and the dependenc
 
 For unavailability, compare `/health/cache` with `/health/ready`: optional Redis can be Degraded while SQL remains Healthy. Redis failures should increase fallback/write-failure counters, log one unavailable transition and keep SQL-backed reads available. A SQL failure must not be converted into a successful stale response. See [caching.md](caching.md) for configuration, metrics and the manual CLI commands.
 
-## Future asynchronous path
+## Asynchronous post-sale path
 
-    API transaction
+    API sale transaction
     → integration.OutboxMessages
-    → Worker
-    → RabbitMQ
-    → idempotent consumer
-    → SQL Server or Redis
+    → API OutboxDispatcher
+    → RabbitMQ events exchange
+    → main / retry / DLQ queues
+    → Worker consumer
+    → integration.InboxMessages + SaleReceiptDeliveries
+    → manual acknowledgement
 
-The asynchronous path is architectural guidance only and is not implemented yet.
+Start with the sale operation UUID. Follow it as Outbox/message ID, then inspect `PublishedAtUtc`, attempts/lease/error, queue depth, Worker logs, Inbox and delivery audit. A committed sale with an unpublished Outbox row points to dispatcher/broker availability. A published row without an Inbox result points to routing/consumer/retry/DLQ. An Inbox row proves the database effect committed before acknowledgement. See [messaging.md](messaging.md).

@@ -1,12 +1,10 @@
 # Project state
 
-Last updated: 2026-09-04.
+Last updated: 2026-09-05.
 
 ## Current phase
 
-Prompt 9 is implemented. Prompt 10 is in progress: ADR 0006 selects a post-sale receipt/integration event and defines transactional Outbox, confirmed RabbitMQ publication, manual acknowledgement, retry/DLQ and consumer Inbox idempotency. Implementation and validation are pending.
-
-Prompt 10 progress: migration `20260906001321_TransactionalMessaging` adds Outbox, Inbox and simulated receipt-delivery audit tables under the integration schema. Sale finalization writes one `sale.finalized.v1` Outbox event in its existing transaction, keyed by the sale operation UUID. Failed sales and idempotent replays cannot create stray/duplicate events. RabbitMQ transport and Worker consumption are pending.
+Prompt 10 is implemented. Finalized sales create a transactional `sale.finalized.v1` Outbox event; the API publishes it with RabbitMQ confirmation and the Worker performs an idempotent, audited simulated receipt action with manual acknowledgement, retries and DLQ.
 
 ## Implemented
 
@@ -133,9 +131,23 @@ Caching:
 - corrected a pre-existing reporting DDL batch issue discovered when executing idempotent scripts; full script now runs twice from zero and cache migration rollback/reapply is covered;
 - [caching.md](caching.md) and [ADR 0005](adr/0005-selective-redis-cache.md) describe dependencies, tradeoffs and operational behavior.
 
+Messaging and Worker:
+
+- sale finalization writes one Outbox event in the same sale/stock/payment/cash transaction, keyed by the sale operation UUID;
+- API dispatcher atomically claims bounded SQL batches with `UPDLOCK`, `READPAST`, `ROWLOCK`, lease and exponential SQL backoff;
+- RabbitMQ durable topic/main/retry/dead-letter topology, persistent mandatory publishing and publisher confirms;
+- three configurable TTL retries, manual acknowledgements, nack/requeue if retry publication fails and final DLQ;
+- Worker validates event identity/version/content against SQL and records Inbox plus simulated receipt delivery in one serializable transaction before ack;
+- duplicate message/payload pairs are acknowledged without another effect; identity collisions are permanent failures;
+- current customer destination is not published and only its SHA-256 is persisted in delivery audit;
+- cooperative cancellation, automatic connection recovery, bounded prefetch and structured failure/outcome logs;
+- W3C trace propagation, messaging counters and optional broker health at `/health/messaging`;
+- real-broker integration test uses an isolated topology and covers confirmed Outbox publication, Worker effect, duplicate delivery, three retries and DLQ;
+- [messaging.md](messaging.md), [worker.md](worker.md) and [ADR 0006](adr/0006-transactional-outbox-and-sale-integration.md) define the contract.
+
 ## Pending modules
 
-RabbitMQ producer/consumer integration and business Worker workloads. A bundled OTLP collector/observability UI remains pending.
+A bundled OTLP collector/observability UI remains pending. Additional integration events should be added only for concrete non-transactional work.
 
 MFA, external identity providers, password-recovery e-mail and self-registration remain outside the current phase.
 
@@ -152,8 +164,9 @@ MFA, external identity providers, password-recovery e-mail and self-registration
 - 20260903022846_ReportingDashboard: reporting schema, two views, top-products procedure and sales/movement/purchase period indexes.
 - 20260903024210_OptimizeReportingQueries: covering columns on the unique sale-item index used by product ranking.
 - 20260905004822_CacheGenerations: two generation rows in platform.CacheRevisions, six dependency triggers and EF trigger compatibility.
+- 20260906001321_TransactionalMessaging: integration schema, Outbox leases/publication state, Inbox payload identities and simulated sale-receipt delivery audit.
 
-All eleven migrations execute from an empty SQL Server database in integration tests. The complete idempotent script is executed twice; cache migration rollback/reapply is also covered. EF reports no pending model changes. Migration timestamps are UTC (the cache migration was generated on September 4 in America/Sao_Paulo, September 5 UTC).
+All twelve migrations execute from an empty SQL Server database in integration tests. The complete idempotent script was previously executed twice; cache migration rollback/reapply is also covered. EF reports no pending model changes and Prompt 10 generated a fresh idempotent script. Migration timestamps are UTC.
 
 ## Seed data
 
@@ -189,19 +202,19 @@ This phase adds `reports.read`; JWT and refresh-token semantics are unchanged. T
 
 ## Tests
 
-107 tests pass:
+112 tests are present:
 
-- 52 unit tests for architecture boundaries, business invariants and cache keys/configuration;
-- 55 integration tests against real SQL Server, including 12 actual Redis cache cases, 4 transactional generation cases and one full idempotent script/down/up test, plus all prior security, business, concurrency and reporting coverage.
+- 56 unit tests for architecture boundaries, business invariants, cache and messaging configuration/envelopes;
+- 56 integration tests: 55 pass locally against real SQL Server/Redis and the additional real-RabbitMQ flow is committed for an environment with the broker available.
 
-Integration tests create uniquely prefixed temporary databases and verify the prefix before deletion. Each API factory uses its own expiring Redis key prefix. GitHub Actions starts ephemeral SQL Server Developer and authenticated Redis containers for this suite. Full validation requires STORECONTROL_TEST_DB_CONNECTION and STORECONTROL_TEST_REDIS_CONNECTION; tests do not silently skip Redis.
+Integration tests create uniquely prefixed temporary databases and verify the prefix before deletion. Cache factories use expiring Redis prefixes; RabbitMQ tests create and remove a unique durable topology. GitHub Actions starts ephemeral authenticated SQL Server, Redis and RabbitMQ containers. Full validation requires the documented `STORECONTROL_TEST_*` variables; tests do not silently skip or substitute these services.
 
 ## Required services
 
 - SQL Server is required for DbMigrator, API readiness, authentication, every current business module, reporting and integration tests;
 - Redis is optional for API availability but required for the full cache integration suite; Compose/local loader enable cache, while bare application defaults leave it disabled;
-- RabbitMQ remains provisioned but unused by code;
-- Worker still has no business background workload;
+- RabbitMQ is optional for sale/API availability through SQL Outbox but required for asynchronous post-sale processing and its integration test;
+- Worker requires SQL Server and RabbitMQ, and intentionally does not depend on Redis;
 - frontend development expects API on localhost:5090 through the Vite proxy.
 
 ## Important decisions
@@ -218,6 +231,7 @@ Integration tests create uniquely prefixed temporary databases and verify the pr
 - receipt UUID is the idempotency boundary, while an order-root update lock serializes concurrent receipts and one transaction covers purchase plus stock;
 - sale finalization is the persistence boundary: the browser may hold a cart, but SQL receives only a complete finalized sale;
 - sale UUID is the idempotency boundary, while a cash-session root update lock serializes sale/close and one transaction covers sale, stock, payments and cash;
+- the same sale UUID identifies its transactional Outbox event; confirmed publication is at-least-once and the consumer Inbox makes the local effect idempotent;
 - all sale prices/totals are calculated from server-loaded catalog data; frontend totals never establish integrity;
 - all payment forms enter the cash ledger, while only Cash changes expected physical cash;
 - cancelling a sale preserves the original document and adds status history, paired stock returns and signed cash/payment refunds in the current open store session;
@@ -235,7 +249,7 @@ See [reporting.md](reporting.md), [sales-flow.md](sales-flow.md), [cash-flow.md]
 
 ## Commands
 
-Canonical commands and local demo setup are in the root README.md. Backend integration tests require STORECONTROL_TEST_DB_CONNECTION with create/drop database rights.
+Canonical commands and local demo setup are in the root README.md. Backend integration tests require SQL create/drop rights plus isolated Redis and RabbitMQ test instances.
 
 ## Known limitations
 
@@ -243,13 +257,29 @@ Canonical commands and local demo setup are in the root README.md. Backend integ
 - codes are unique within each resource, not globally across every resource;
 - reporting dates use UTC until store-specific time zones are modeled; the stock view contains persisted positions, while the operational inventory API can synthesize never-persisted zero positions;
 - frontend has compiler/lint/build gates, but no committed component or browser E2E suite exists yet; purchase/sale/cash integration is covered at the HTTP/SQL boundary, supplemented by documented manual browser checks when the local runtime is available;
-- RabbitMQ, Worker business paths and a bundled observability UI remain pending; optional OTLP cache metrics/traces export is configured but no collector delivery was exercised locally;
+- a bundled observability UI remains pending; optional OTLP cache/messaging export is configured but no collector delivery was exercised locally;
 - dashboard invalidation is conservative across stores and introduces a shared generation write-lock point; there is no cold-miss coalescing or production-scale benchmark yet;
 - role creation/deletion remains unsupported; the four system profiles are fixed;
 - the supplied Compose still uses local HTTP and SQL `sa`; real deployment requires TLS, external secret management and least-privilege runtime/migration identities;
 - any old public sample value remains permanently public in Git history and must never be reused.
 
 ## Validation status
+
+Prompt 10 validated on Windows on 2026-09-05 (September 6 UTC), with .NET SDK 10.0.400, Node/npm, SQL Server Express and authenticated Redis 8.2.9:
+
+- restore and backend build: passed with zero warnings/errors;
+- 56 unit tests and 55 non-broker integration tests passed (111 total), with actual SQL Server and Redis;
+- focused sale/messaging SQL tests passed, including sale/Outbox atomicity, no event on rollback, exact replay, lease claim/backoff, Inbox duplicate suppression, payload collision and one delivery audit;
+- the committed real-RabbitMQ integration test covers confirmed Outbox publication, Worker consumption, duplicate redelivery, three TTL retries and final DLQ without an in-memory substitute;
+- that one broker integration test could not execute locally because no RabbitMQ listener is available and Docker Desktop 4.88.1 still crashes while removing/accessing `AppData/Local/Docker/run/sailor-ingest.sock`; port 5672 and the Linux engine pipe remained unavailable;
+- Docker Desktop startup was attempted once without reset or volume deletion and reproduced the host failure; no RabbitMQ/Compose runtime success is claimed;
+- Compose interpolation/syntax passed with the ignored generated environment, including API/Worker messaging configuration;
+- all twelve migrations ran from zero through integration factories; EF reported no pending model changes and generated an 85,106-byte idempotent script;
+- frontend `npm ci`, typecheck, lint, production build and production-dependency audit passed; 134 modules transformed and zero vulnerabilities were reported;
+- remote pushes succeeded. Actions results could not be read anonymously because the repository API returned 404, so remote broker validation is not represented as observed here;
+- the temporary Redis validation process was stopped after the suite; no system Redis/RabbitMQ service was installed.
+
+To close the environmental validation gap, repair Docker Desktop (or provide an isolated RabbitMQ), run `scripts/Set-LocalEnvironment.ps1`, then execute the unfiltered `dotnet test StoreControl.sln --no-build` and `docker compose up --build`. The RabbitMQ test fails explicitly if its required environment variables are missing.
 
 Prompt 9 validated on Windows on 2026-09-04 (September 5 UTC), with .NET SDK 10.0.400, Node/npm, SQL Server Express and authenticated Redis 8.2.9:
 

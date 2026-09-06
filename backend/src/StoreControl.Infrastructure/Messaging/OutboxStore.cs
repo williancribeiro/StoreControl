@@ -18,7 +18,7 @@ internal sealed class OutboxStore(StoreControlDbContext dbContext)
             var lockedUntil = now.Add(leaseDuration);
 
             await using var transaction = await dbContext.Database.BeginTransactionAsync(cancellationToken);
-            await dbContext.Database.ExecuteSqlInterpolatedAsync($$"""
+            await dbContext.Database.ExecuteSqlInterpolatedAsync($"""
             ;WITH candidates AS
             (
                 SELECT TOP ({batchSize}) *

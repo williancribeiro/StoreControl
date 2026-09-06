@@ -16,4 +16,6 @@ Redis adds `StoreControl.Cache` traces (`cache.get`, `cache.set`), the `storecon
 
 `GET /health/cache` is separate from readiness and returns aggregate Healthy/Degraded without server details. Redis failure is degraded (HTTP 200); SQL failure still fails readiness. A disabled cache reports Healthy because SQL-only mode is intentional. See [caching.md](caching.md).
 
-EF Core trace enrichment, RabbitMQ context propagation and local visualization services remain pending. No OTLP collector or dashboard UI is bundled or claimed as validated.
+RabbitMQ adds `StoreControl.Messaging` producer/consumer activities with W3C context in message headers. The bounded-tag counters `storecontrol.messaging.publications` and `storecontrol.messaging.deliveries` distinguish confirmed/failed publication and processed/duplicate/retry/dead-letter outcomes. Logs contain message/sale identifiers, attempt and outcome, never event payloads or customer destinations. `/health/messaging` is separate and Degraded broker health does not make SQL readiness fail.
+
+EF Core trace enrichment and local visualization services remain pending. No OTLP collector or dashboard UI is bundled or claimed as validated.

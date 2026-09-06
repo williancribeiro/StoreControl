@@ -79,6 +79,7 @@ Creation returns 201 and never changes stock. A new receipt returns 201 after it
 - GET /api/smoke: authenticated real API-to-SQL query with diagnostic metadata;
 - GET /health/live: public process liveness with aggregate status only;
 - GET /health/ready and /health: public SQL readiness with aggregate status only;
+- GET /health/messaging: public optional RabbitMQ health; Degraded still returns HTTP 200 because SQL Outbox preserves sale availability;
 - /swagger and /swagger/v1/swagger.json in Development.
 
 Swagger defines bearer authentication. Access tokens are returned in the login/refresh response; refresh tokens are cookie-only.

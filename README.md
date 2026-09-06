@@ -4,7 +4,7 @@ StoreControl é um laboratório de estudos que simula um sistema empresarial de 
 
 ## Estado atual
 
-A fundação, segurança, lojas, cadastros, estoque por produto/loja, compras/recebimentos, vendas/pagamentos, cancelamento auditado, caixa, transferências, dashboard, relatórios e cache Redis seletivo estão implementados. Mensageria de negócio permanece pendente. O estado verificável está em [docs/project-state.md](docs/project-state.md).
+A fundação, segurança, lojas, cadastros, estoque por produto/loja, compras/recebimentos, vendas/pagamentos, cancelamento auditado, caixa, transferências, dashboard, relatórios, cache Redis seletivo e processamento pós-venda com RabbitMQ/Worker estão implementados. O estado verificável está em [docs/project-state.md](docs/project-state.md).
 
 ## Stack ativa
 
@@ -15,7 +15,8 @@ A fundação, segurança, lojas, cadastros, estoque por produto/loja, compras/re
 - Swagger/OpenAPI, Problem Details, Serilog, correlation ID e tracing OpenTelemetry inicial;
 - Docker Compose com SQL Server, Redis e RabbitMQ;
 - cache de dashboard/categorias com invalidação transacional, TTL, fallback SQL, métricas e traces;
-- xUnit, integração com SQL Server e Redis reais e GitHub Actions.
+- Outbox transacional, RabbitMQ com confirmação/retry/DLQ e Worker com Inbox idempotente;
+- xUnit, integração com SQL Server, Redis e RabbitMQ reais e GitHub Actions.
 
 ## Execução completa com Docker
 
@@ -81,7 +82,7 @@ Frontend:
 
 ## Build e testes
 
-Os testes de integração criam e removem um banco efêmero com prefixo StoreControl_IntegrationTests_. A suíte completa também exige Redis real: o carregador prepara `STORECONTROL_TEST_DB_CONNECTION` e `STORECONTROL_TEST_REDIS_CONNECTION`. Os testes de cache falham explicitamente se Redis não estiver configurado. O Redis de testes deve ser isolado; um caso cria e remove uma identidade ACL temporária para simular rejeição de gravações.
+Os testes de integração criam e removem bancos efêmeros com prefixos seguros. A suíte completa exige SQL Server, Redis e RabbitMQ reais; o carregador prepara as variáveis `STORECONTROL_TEST_*`. Os testes falham explicitamente quando uma dependência obrigatória não está configurada. Redis e RabbitMQ devem ser instâncias isoladas de desenvolvimento/teste: a suíte cria chaves/identidade ACL temporárias no Redis e topologias temporárias no RabbitMQ.
 
     .\scripts\Set-LocalEnvironment.ps1
     dotnet tool restore
@@ -123,6 +124,8 @@ Para uma primeira leitura, comece pelo estado atual, siga para a arquitetura e e
 - [docs/cash-flow.md](docs/cash-flow.md): abertura, ledger, movimentações e fechamento;
 - [docs/reporting.md](docs/reporting.md): indicadores, relatórios, SQL e decisões de performance;
 - [docs/caching.md](docs/caching.md): consultas cacheadas, TTL, invalidação SQL, configuração e indisponibilidade;
+- [docs/messaging.md](docs/messaging.md): Outbox, RabbitMQ, acknowledgement, retry, DLQ e idempotência;
+- [docs/worker.md](docs/worker.md): responsabilidade e ciclo de vida do consumidor;
 - [docs/debugging-map.md](docs/debugging-map.md): caminhos de diagnóstico;
 - [docs/security.md](docs/security.md): limites de segurança e configuração local;
 - [docs/project-state.md](docs/project-state.md): estado, migrations e validações.

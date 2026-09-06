@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using RabbitMQ.Client;
 using StoreControl.Application.Abstractions.Persistence;
 using StoreControl.Infrastructure;
 using StoreControl.Infrastructure.Messaging;
@@ -58,27 +59,62 @@ public sealed class RabbitMqApiFactory : WebApplicationFactory<Program>, IAsyncL
 
     async Task IAsyncLifetime.DisposeAsync()
     {
+        await base.DisposeAsync();
         await CleanupTopologyAsync();
-
-        await using var scope = Services.CreateAsyncScope();
-        var dbContext = scope.ServiceProvider.GetRequiredService<StoreControlDbContext>();
         var databaseName = new SqlConnectionStringBuilder(_connectionString).InitialCatalog;
         if (!databaseName.StartsWith("StoreControl_RabbitIntegrationTests_", StringComparison.Ordinal))
         {
             throw new InvalidOperationException("Refusing to delete a database outside the RabbitMQ test prefix.");
         }
 
-        await dbContext.Database.EnsureDeletedAsync();
-        await base.DisposeAsync();
+        if (databaseName.Any(character => !char.IsAsciiLetterOrDigit(character) && character != '_'))
+        {
+            throw new InvalidOperationException("Refusing to quote an unexpected integration-test database name.");
+        }
+
+        var masterConnectionString = new SqlConnectionStringBuilder(_connectionString)
+        {
+            InitialCatalog = "master"
+        }.ConnectionString;
+        await using var sqlConnection = new SqlConnection(masterConnectionString);
+        await sqlConnection.OpenAsync();
+        await using var command = sqlConnection.CreateCommand();
+        var quotedDatabaseName = new SqlCommandBuilder().QuoteIdentifier(databaseName);
+        command.CommandText = $"""
+            IF DB_ID(@databaseName) IS NOT NULL
+            BEGIN
+                ALTER DATABASE {quotedDatabaseName} SET SINGLE_USER WITH ROLLBACK IMMEDIATE;
+                DROP DATABASE {quotedDatabaseName};
+            END
+            """;
+        command.Parameters.AddWithValue("@databaseName", databaseName);
+        await command.ExecuteNonQueryAsync();
     }
 
     private async Task CleanupTopologyAsync()
     {
-        await using var scope = Services.CreateAsyncScope();
-        var connection = scope.ServiceProvider.GetRequiredService<RabbitMqConnection>();
-        var topology = scope.ServiceProvider.GetRequiredService<RabbitTopology>();
-        var options = scope.ServiceProvider.GetRequiredService<Microsoft.Extensions.Options.IOptions<MessagingOptions>>().Value;
-        var rabbitConnection = await connection.GetAsync(default);
+        var options = new MessagingOptions
+        {
+            Enabled = true,
+            HostName = _rabbit.Host,
+            Port = _rabbit.Port,
+            UserName = _rabbit.UserName,
+            Password = _rabbit.Password,
+            VirtualHost = _rabbit.VirtualHost,
+            TopologyPrefix = TopologyPrefix,
+            RetryDelaysMilliseconds = [200, 400, 800]
+        };
+        var topology = new RabbitTopology(options);
+        var connectionFactory = new ConnectionFactory
+        {
+            HostName = _rabbit.Host,
+            Port = _rabbit.Port,
+            UserName = _rabbit.UserName,
+            Password = _rabbit.Password,
+            VirtualHost = _rabbit.VirtualHost,
+            ClientProvidedName = "storecontrol-integration-cleanup"
+        };
+        await using var rabbitConnection = await connectionFactory.CreateConnectionAsync();
         await using var channel = await rabbitConnection.CreateChannelAsync();
         await channel.QueueDeleteAsync(topology.SaleFinalizedQueue, ifUnused: false, ifEmpty: false);
         await channel.QueueDeleteAsync(topology.SaleFinalizedDeadLetterQueue, ifUnused: false, ifEmpty: false);

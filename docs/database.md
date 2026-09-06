@@ -56,6 +56,12 @@ reporting:
 - vw_StockPosition: persisted balance joined to store, product and category with the low-stock expression;
 - usp_TopSellingProducts: bounded period/store ranking with quantity, gross item revenue and sale count.
 
+integration:
+
+- OutboxMessages: durable post-sale event payload, routing/correlation metadata, publication state, attempts, backoff and expiring dispatcher lease;
+- InboxMessages: consumer/message composite identity, SHA-256 payload hash and processing time;
+- SaleReceiptDeliveries: one simulated post-sale delivery audit per event and sale, with status and optional SHA-256 destination hash.
+
 security:
 
 - Users, Roles, UserRoles, UserClaims, RoleClaims, UserLogins and UserTokens from ASP.NET Core Identity;
@@ -78,8 +84,9 @@ Normalized e-mail and normalized username are protected by filtered unique index
 - 20260903022846_ReportingDashboard: adds the reporting schema, daily-sales and stock-position views, top-products procedure and period-query indexes.
 - 20260903024210_OptimizeReportingQueries: makes the unique sale-item index cover quantity and line subtotal for the ranking query.
 - 20260905004822_CacheGenerations: two `platform.CacheRevisions` rows and six DML triggers for transactional dashboard/category invalidation; EF trigger-bearing tables disable direct OUTPUT while retaining generated identity/rowversion values.
+- 20260906001321_TransactionalMessaging: integration schema with transactional Outbox, consumer Inbox and simulated sale-receipt delivery audit, including JSON/lease/status constraints and publication/identity indexes.
 
-All eleven migrations were validated from an empty database, including executing the full idempotent SQL script twice. Cache migration rollback/reapply is tested. Fixed CREATE VIEW/PROCEDURE/TRIGGER DDL is wrapped in EXEC batches to support EF's conditional idempotent scripts. This also corrects the earlier reporting script's batch-compatibility problem without changing its schema definitions. Use `sqlcmd -I` when executing manually so QUOTED_IDENTIFIER is enabled for filtered indexes.
+All twelve migrations were validated from an empty database, and EF reports no pending model changes. Earlier validation also executed the complete idempotent SQL script twice and the cache migration rollback/reapply. Fixed CREATE VIEW/PROCEDURE/TRIGGER DDL is wrapped in EXEC batches to support EF's conditional idempotent scripts. This also corrects the earlier reporting script's batch-compatibility problem without changing its schema definitions. Use `sqlcmd -I` when executing manually so QUOTED_IDENTIFIER is enabled for filtered indexes.
 
 ## Seeds
 
@@ -98,3 +105,5 @@ The connection key is ConnectionStrings:StoreControl. It must come from environm
 The reporting schema uses views for reusable read projections and one stored procedure for the bounded top-product ranking. Movement and purchase aggregates stay in LINQ because their translated SQL remains clear. Purchase receiving, sale finalization/cancellation, transfer transitions and cash mutation deliberately use parameterized SQL for SQL Server `UPDLOCK` root queries because EF LINQ has no equivalent lock hint.
 
 Cache-generation triggers perform only an indexed metadata update in the business transaction; they never contact Redis. Dependencies and the shared-generation write-contention tradeoff are documented in [caching.md](caching.md). Disabling these triggers or changing persisted data through an import that skips them violates the invalidation contract.
+
+Sale finalization inserts one Outbox row in the same transaction as all authoritative business effects. The API dispatcher claims rows with SQL locking/read-past hints and a lease; the Worker commits Inbox and receipt audit before acknowledging RabbitMQ. See [messaging.md](messaging.md).

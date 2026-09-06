@@ -66,6 +66,8 @@ Set STORECONTROL_TEST_DB_CONNECTION to a SQL Server connection with create/drop 
 
 The full suite also requires `STORECONTROL_TEST_REDIS_CONNECTION` for an isolated real Redis server. The loader supplies it, and CI starts authenticated ephemeral Redis with a masked generated password. Cache integration tests fail explicitly when it is missing. All API factories use unique cache prefixes when Redis is configured, so existing business tests also run through cached reads. One test needs ACL SETUSER/DELUSER to create/remove its unique write-denied identity; use an isolated development/test Redis instance, not production. Entries expire naturally; tests never FLUSHDB or flush other prefixes. Unit tests additionally validate canonical keys, scope/date separation and configuration bounds.
 
+RabbitMQ integration additionally requires `STORECONTROL_TEST_RABBITMQ_HOST`, `PORT`, `USERNAME`, `PASSWORD` and optional `VHOST`. The local loader supplies them and CI starts an authenticated ephemeral broker. The suite creates a unique topology prefix, verifies confirmed Outbox publication, Worker effect, duplicate suppression, three TTL retries and final DLQ, then removes its queues/exchanges. Missing broker configuration is a test failure, not a silent skip or in-memory substitution.
+
 This phase uses a real configured SQL Server rather than Testcontainers so tests can run on the validation host even while its Docker daemon is unavailable. Testcontainers remains appropriate for later suites when the local Docker blocker is repaired.
 
 ## Frontend validation
