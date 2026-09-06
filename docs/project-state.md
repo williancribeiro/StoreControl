@@ -4,7 +4,7 @@ Last updated: 2026-09-04.
 
 ## Current phase
 
-Prompt 9 is implemented: selective Redis cache for dashboard and unsearched category lists, transactional SQL invalidation, environment/Compose configuration, telemetry, real-service tests and documentation. Docker container runtime validation remains blocked by the host, as detailed below.
+Prompt 9 is implemented. Prompt 10 is in progress: ADR 0006 selects a post-sale receipt/integration event and defines transactional Outbox, confirmed RabbitMQ publication, manual acknowledgement, retry/DLQ and consumer Inbox idempotency. Implementation and validation are pending.
 
 ## Implemented
 
