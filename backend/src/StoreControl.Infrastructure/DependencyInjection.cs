@@ -18,6 +18,7 @@ using StoreControl.Infrastructure.Cash;
 using StoreControl.Infrastructure.HealthChecks;
 using StoreControl.Infrastructure.Identity;
 using StoreControl.Infrastructure.Inventory;
+using StoreControl.Infrastructure.Messaging;
 using StoreControl.Infrastructure.Purchasing;
 using StoreControl.Infrastructure.Reporting;
 using StoreControl.Infrastructure.Sales;
@@ -80,6 +81,18 @@ public static class DependencyInjection
         services.AddSingleton<CacheTelemetry>();
         services.AddScoped<RedisReadCache>();
 
+        services.AddOptions<MessagingOptions>()
+            .Bind(configuration.GetSection(MessagingOptions.SectionName))
+            .Validate(
+                options => options.IsValid(),
+                "Invalid Messaging configuration; check credentials, topology prefix, timeouts and retry delays.")
+            .ValidateOnStart();
+        services.AddSingleton(serviceProvider =>
+            new RabbitTopology(serviceProvider.GetRequiredService<Microsoft.Extensions.Options.IOptions<MessagingOptions>>().Value));
+        services.AddSingleton<RabbitMqConnection>();
+        services.AddSingleton<RabbitMqPublisher>();
+        services.AddScoped<OutboxStore>();
+
         services.AddScoped<IDatabaseSmokeCheck, SqlServerDatabaseSmokeCheck>();
         services.AddScoped<IDatabaseSeeder, DatabaseSeeder>();
         services.AddScoped<MasterDataSeeder>();
@@ -103,8 +116,15 @@ public static class DependencyInjection
         services.AddScoped<IReportingService, ReportingService>();
         services.AddHealthChecks()
             .AddCheck<SqlServerHealthCheck>("sqlserver", tags: ["ready"])
-            .AddCheck<RedisHealthCheck>("redis", tags: ["cache"]);
+            .AddCheck<RedisHealthCheck>("redis", tags: ["cache"])
+            .AddCheck<RabbitMqHealthCheck>("rabbitmq", tags: ["messaging"]);
 
+        return services;
+    }
+
+    public static IServiceCollection AddOutboxPublisher(this IServiceCollection services)
+    {
+        services.AddHostedService<OutboxDispatcher>();
         return services;
     }
 }

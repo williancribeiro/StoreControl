@@ -11,6 +11,7 @@ using StoreControl.Api.Middleware;
 using StoreControl.Api.Security;
 using StoreControl.Infrastructure;
 using StoreControl.Infrastructure.Caching;
+using StoreControl.Infrastructure.Messaging;
 
 Log.Logger = new LoggerConfiguration()
     .WriteTo.Console(new CompactJsonFormatter())
@@ -80,15 +81,19 @@ try
     });
 
     builder.Services.AddInfrastructure(builder.Configuration);
+    builder.Services.AddOutboxPublisher();
 
     var telemetryBuilder = builder.Services
         .AddOpenTelemetry()
         .ConfigureResource(resource => resource.AddService("StoreControl.Api"))
         .WithTracing(tracing => tracing
             .AddSource(CacheTelemetry.SourceName)
+            .AddSource(MessagingTelemetry.SourceName)
             .AddAspNetCoreInstrumentation()
             .AddHttpClientInstrumentation())
-        .WithMetrics(metrics => metrics.AddMeter(CacheTelemetry.SourceName));
+        .WithMetrics(metrics => metrics
+            .AddMeter(CacheTelemetry.SourceName)
+            .AddMeter(MessagingTelemetry.SourceName));
 
     var otlpEndpoint = builder.Configuration["OpenTelemetry:OtlpEndpoint"];
     if (Uri.TryCreate(otlpEndpoint, UriKind.Absolute, out var endpoint))
@@ -126,6 +131,11 @@ try
     app.MapHealthChecks("/health/cache", new HealthCheckOptions
     {
         Predicate = registration => registration.Tags.Contains("cache"),
+        ResponseWriter = HealthCheckResponseWriter.WriteAsync
+    });
+    app.MapHealthChecks("/health/messaging", new HealthCheckOptions
+    {
+        Predicate = registration => registration.Tags.Contains("messaging"),
         ResponseWriter = HealthCheckResponseWriter.WriteAsync
     });
     app.MapHealthChecks("/health/live", new HealthCheckOptions
