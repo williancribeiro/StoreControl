@@ -16,7 +16,9 @@ export const httpClient = axios.create({
 })
 
 httpClient.interceptors.request.use((config) => {
-  config.headers.set('X-Correlation-ID', crypto.randomUUID())
+  if (!config.headers.has('X-Correlation-ID')) {
+    config.headers.set('X-Correlation-ID', crypto.randomUUID())
+  }
   if (accessToken) {
     config.headers.set('Authorization', `Bearer ${accessToken}`)
   }

@@ -1,9 +1,12 @@
+using System.Diagnostics;
+using System.Security.Claims;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.OpenApi;
 using OpenTelemetry.Resources;
 using OpenTelemetry.Metrics;
 using OpenTelemetry.Trace;
 using Serilog;
+using Serilog.Events;
 using Serilog.Formatting.Compact;
 using StoreControl.Api.ErrorHandling;
 using StoreControl.Api.HealthChecks;
@@ -33,7 +36,8 @@ try
     {
         options.CustomizeProblemDetails = context =>
         {
-            context.ProblemDetails.Extensions["traceId"] = context.HttpContext.TraceIdentifier;
+            context.ProblemDetails.Extensions["traceId"] =
+                Activity.Current?.TraceId.ToString() ?? context.HttpContext.TraceIdentifier;
             context.ProblemDetails.Extensions["correlationId"] = context.HttpContext.TraceIdentifier;
         };
     });
@@ -75,7 +79,10 @@ try
                 policy.WithOrigins(allowedOrigins)
                     .AllowAnyHeader()
                     .AllowAnyMethod()
-                    .AllowCredentials();
+                    .AllowCredentials()
+                    .WithExposedHeaders(
+                        CorrelationIdMiddleware.HeaderName,
+                        CorrelationIdMiddleware.TraceHeaderName);
             }
         });
     });
@@ -108,7 +115,28 @@ try
 
     app.UseMiddleware<CorrelationIdMiddleware>();
     app.UseMiddleware<SecurityHeadersMiddleware>();
-    app.UseSerilogRequestLogging();
+    app.UseSerilogRequestLogging(options =>
+    {
+        options.MessageTemplate =
+            "HTTP {RequestMethod} {RequestPath} responded {StatusCode} in {Elapsed:0.0000} ms";
+        options.GetLevel = (httpContext, _, exception) => exception is not null
+            || httpContext.Response.StatusCode >= StatusCodes.Status500InternalServerError
+                ? LogEventLevel.Error
+                : httpContext.Response.StatusCode >= StatusCodes.Status400BadRequest
+                    ? LogEventLevel.Warning
+                    : httpContext.Request.Path.StartsWithSegments("/health")
+                        ? LogEventLevel.Debug
+                        : LogEventLevel.Information;
+        options.EnrichDiagnosticContext = (diagnosticContext, httpContext) =>
+        {
+            diagnosticContext.Set("Endpoint", httpContext.GetEndpoint()?.DisplayName ?? "unmatched");
+            var userId = httpContext.User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (!string.IsNullOrWhiteSpace(userId))
+            {
+                diagnosticContext.Set("UserId", userId);
+            }
+        };
+    });
     app.UseExceptionHandler();
     app.UseRouting();
     app.UseCors("frontend");

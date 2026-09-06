@@ -76,6 +76,9 @@ public sealed class AuthenticationAndAuthorizationTests(SqlServerApiFactory fact
         Assert.Equal(
             "integration-test_123",
             Assert.Single(safeResponse.Headers.GetValues("X-Correlation-ID")));
+        var safeTraceId = Assert.Single(safeResponse.Headers.GetValues("X-Trace-ID"));
+        Assert.Equal(32, safeTraceId.Length);
+        Assert.True(safeTraceId.All(character => char.IsAsciiHexDigit(character)));
 
         using var unsafeRequest = new HttpRequestMessage(HttpMethod.Get, "/health/live");
         unsafeRequest.Headers.Add("X-Correlation-ID", "unsafe value");
@@ -84,6 +87,7 @@ public sealed class AuthenticationAndAuthorizationTests(SqlServerApiFactory fact
 
         Assert.NotEqual("unsafe value", replacement);
         Assert.True(Guid.TryParseExact(replacement, "N", out _));
+        Assert.Equal(32, Assert.Single(unsafeResponse.Headers.GetValues("X-Trace-ID")).Length);
     }
 
     [Fact]
