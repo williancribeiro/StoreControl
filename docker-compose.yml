@@ -67,6 +67,19 @@ services:
     networks:
       - backend
 
+  aspire-dashboard:
+    image: mcr.microsoft.com/dotnet/aspire-dashboard:13.4.2
+    environment:
+      DOTNET_DASHBOARD_UNSECURED_ALLOW_ANONYMOUS: "true"
+    ports:
+      - "127.0.0.1:${OBSERVABILITY_DASHBOARD_PORT:-18888}:18888"
+      - "127.0.0.1:${OTLP_GRPC_PORT:-4317}:18889"
+    mem_limit: 512m
+    security_opt:
+      - no-new-privileges:true
+    networks:
+      - backend
+
   migrator:
     build:
       context: .
@@ -111,6 +124,7 @@ services:
       Messaging__Password: ${RABBITMQ_DEFAULT_PASS:?Execute scripts/Initialize-LocalEnvironment.ps1 antes de iniciar o Compose}
       Messaging__VirtualHost: /
       Messaging__TopologyPrefix: ${MESSAGING_TOPOLOGY_PREFIX:-storecontrol}
+      OpenTelemetry__OtlpEndpoint: http://aspire-dashboard:18889
     ports:
       - "127.0.0.1:${API_PORT:-5090}:8080"
     depends_on:
@@ -137,6 +151,7 @@ services:
       Messaging__Password: ${RABBITMQ_DEFAULT_PASS:?Execute scripts/Initialize-LocalEnvironment.ps1 antes de iniciar o Compose}
       Messaging__VirtualHost: /
       Messaging__TopologyPrefix: ${MESSAGING_TOPOLOGY_PREFIX:-storecontrol}
+      OpenTelemetry__OtlpEndpoint: http://aspire-dashboard:18889
     depends_on:
       migrator:
         condition: service_completed_successfully

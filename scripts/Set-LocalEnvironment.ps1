@@ -46,6 +46,9 @@ $testConnection = "Server=localhost,$sqlPort;Database=master;User Id=sa;Password
 [Environment]::SetEnvironmentVariable('Authentication__Jwt__SigningKey', $localValues['JWT_SIGNING_KEY'], 'Process')
 [Environment]::SetEnvironmentVariable('Authentication__RefreshToken__CookieSecure', 'false', 'Process')
 
+$otlpPort = if ($localValues.ContainsKey('OTLP_GRPC_PORT')) { $localValues['OTLP_GRPC_PORT'] } else { '4317' }
+[Environment]::SetEnvironmentVariable('OpenTelemetry__OtlpEndpoint', "http://127.0.0.1:$otlpPort", 'Process')
+
 $cachePort = if ($localValues.ContainsKey('REDIS_PORT')) { $localValues['REDIS_PORT'] } else { '6379' }
 $cacheConnection = "127.0.0.1:$cachePort,password=$($localValues['REDIS_PASSWORD'])"
 [Environment]::SetEnvironmentVariable('Cache__RedisConnection', $cacheConnection, 'Process')
