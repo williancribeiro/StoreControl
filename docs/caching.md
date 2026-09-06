@@ -67,7 +67,7 @@ Compose uses 128 MB `maxmemory`, `allkeys-lru`, a 256 MB container limit, no AOF
 
 `StoreControl.Cache` emits `cache.get`/`cache.set` spans under the HTTP trace. The `storecontrol.cache.requests` counter uses bounded `cache.region` and `cache.outcome` labels: `hit`, `miss`, `fill`, `fallback`, `write_failure`, `corrupt`, `disabled`. Outcomes count events: a miss and its fill are two events, not two HTTP requests. `storecontrol.cache.redis.duration` records milliseconds by get/set operation. No user ID, raw filter, Redis key, password or payload is a metric label or log field.
 
-Hit/miss details are Debug logs. An unavailable transition produces one Warning with the exception type, and a successful cache operation logs recovery once. `OpenTelemetry__OtlpEndpoint` exports both metrics and traces when configured; exporting is optional and there is no bundled collector/UI yet.
+Hit/miss details are Debug logs. An unavailable transition produces one Warning with the exception type, and a successful cache operation logs recovery once. `OpenTelemetry__OtlpEndpoint` exports both metrics and traces when configured; the local Compose supplies the loopback Aspire Dashboard described in [observability.md](observability.md).
 
 For manual inspection with Compose, open an authenticated CLI without printing the password:
 

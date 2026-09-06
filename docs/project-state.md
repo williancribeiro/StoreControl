@@ -1,10 +1,10 @@
 # Project state
 
-Last updated: 2026-09-05.
+Last updated: 2026-09-06.
 
 ## Current phase
 
-Prompt 10 is implemented. Finalized sales create a transactional `sale.finalized.v1` Outbox event; the API publishes it with RabbitMQ confirmation and the Worker performs an idempotent, audited simulated receipt action with manual acknowledgement, retries and DLQ.
+Prompt 11 is implemented. API and Worker now export correlated structured logs, W3C traces and runtime/business/dependency metrics through OTLP; the local Compose includes an Aspire Dashboard, and the sale trace remains causally connected through SQL Outbox, RabbitMQ and Worker.
 
 ## Implemented
 
@@ -12,7 +12,7 @@ Foundation and security:
 
 - .NET 10 modular monolith with Domain, Application, Infrastructure, API, Worker and DbMigrator;
 - separate React/TypeScript/Vite frontend;
-- EF Core SQL Server DbContext, migration-only DbMigrator, Swagger, Problem Details, structured logs, correlation ID, initial OpenTelemetry and health endpoints;
+- EF Core SQL Server DbContext, migration-only DbMigrator, Swagger, Problem Details, structured logs, distinct correlation/trace IDs, consolidated OpenTelemetry and health endpoints;
 - ASP.NET Core Identity, four fixed profiles, store assignments, JWT, hashed rotating refresh tokens and backend permission policies;
 - user, role/permission and store administration;
 - generated ignored local secrets, opt-in demo identities, authenticated smoke diagnostics and minimal anonymous health payloads;
@@ -141,13 +141,25 @@ Messaging and Worker:
 - duplicate message/payload pairs are acknowledged without another effect; identity collisions are permanent failures;
 - current customer destination is not published and only its SHA-256 is persisted in delivery audit;
 - cooperative cancellation, automatic connection recovery, bounded prefetch and structured failure/outcome logs;
-- W3C trace propagation, messaging counters and optional broker health at `/health/messaging`;
+- persisted W3C trace propagation across delayed Outbox publication and the remote Worker consumer, messaging counters/latency histograms and optional broker health at `/health/messaging`;
 - real-broker integration test uses an isolated topology and covers confirmed Outbox publication, Worker effect, duplicate delivery, three retries and DLQ;
 - [messaging.md](messaging.md), [worker.md](worker.md) and [ADR 0006](adr/0006-transactional-outbox-and-sale-integration.md) define the contract.
 
+Observability:
+
+- compact Serilog JSON console logs and OTLP log export with scopes for `CorrelationId`, `TraceId` and `SpanId`;
+- validated application correlation IDs returned separately from W3C `X-Trace-ID`; Axios preserves correlation through authentication retry;
+- ASP.NET Core, outgoing HTTP, SqlClient and .NET runtime instrumentation for API/Worker as applicable;
+- explicit `sale.finalize`, cache, RabbitMQ producer/consumer/retry and dependency-health spans with error status;
+- bounded-cardinality sales, cache, messaging, dependency and runtime/request metrics; identifiers are excluded from metric labels;
+- separate live, ready, cache, messaging and aggregate health routes with minimal non-cacheable public payloads;
+- standalone Aspire Dashboard in local Compose, with UI and OTLP ports bound to loopback only;
+- unit tests for trace context and metric outcomes plus real-SQL HTTP verification of response correlation/trace IDs and SqlClient spans;
+- [observability.md](observability.md) defines signals, privacy, topology and local use; [debugging-map.md](debugging-map.md) maps Browser DevTools, Visual Studio, logs, traces, SQL Server, Redis and RabbitMQ.
+
 ## Pending modules
 
-A bundled OTLP collector/observability UI remains pending. Additional integration events should be added only for concrete non-transactional work.
+Additional integration events should be added only for concrete non-transactional work. Production telemetry storage, authentication, retention and sampling remain deployment concerns; the bundled dashboard is intentionally local and transient.
 
 MFA, external identity providers, password-recovery e-mail and self-registration remain outside the current phase.
 
@@ -165,8 +177,9 @@ MFA, external identity providers, password-recovery e-mail and self-registration
 - 20260903024210_OptimizeReportingQueries: covering columns on the unique sale-item index used by product ranking.
 - 20260905004822_CacheGenerations: two generation rows in platform.CacheRevisions, six dependency triggers and EF trigger compatibility.
 - 20260906001321_TransactionalMessaging: integration schema, Outbox leases/publication state, Inbox payload identities and simulated sale-receipt delivery audit.
+- 20260906200531_AsyncTraceContext: nullable W3C traceparent/tracestate fields on transactional Outbox rows.
 
-All twelve migrations execute from an empty SQL Server database in integration tests. The complete idempotent script was previously executed twice; cache migration rollback/reapply is also covered. EF reports no pending model changes and Prompt 10 generated a fresh idempotent script. Migration timestamps are UTC.
+All thirteen migrations execute from an empty SQL Server database in integration tests. The complete idempotent script was previously executed twice; cache migration rollback/reapply is also covered. EF reports no pending model changes and Prompt 11 generated a fresh idempotent script. Migration timestamps are UTC.
 
 ## Seed data
 
@@ -202,10 +215,10 @@ This phase adds `reports.read`; JWT and refresh-token semantics are unchanged. T
 
 ## Tests
 
-112 tests are present:
+117 tests are present:
 
-- 56 unit tests for architecture boundaries, business invariants, cache and messaging configuration/envelopes;
-- 56 integration tests: 55 pass locally against real SQL Server/Redis and the additional real-RabbitMQ flow is committed for an environment with the broker available.
+- 60 unit tests for architecture boundaries, business invariants, cache/messaging configuration and observability semantics;
+- 57 integration tests: 56 pass locally against real SQL Server/Redis and the additional real-RabbitMQ flow is committed for an environment with the broker available.
 
 Integration tests create uniquely prefixed temporary databases and verify the prefix before deletion. Cache factories use expiring Redis prefixes; RabbitMQ tests create and remove a unique durable topology. GitHub Actions starts ephemeral authenticated SQL Server, Redis and RabbitMQ containers. Full validation requires the documented `STORECONTROL_TEST_*` variables; tests do not silently skip or substitute these services.
 
@@ -257,13 +270,27 @@ Canonical commands and local demo setup are in the root README.md. Backend integ
 - codes are unique within each resource, not globally across every resource;
 - reporting dates use UTC until store-specific time zones are modeled; the stock view contains persisted positions, while the operational inventory API can synthesize never-persisted zero positions;
 - frontend has compiler/lint/build gates, but no committed component or browser E2E suite exists yet; purchase/sale/cash integration is covered at the HTTP/SQL boundary, supplemented by documented manual browser checks when the local runtime is available;
-- a bundled observability UI remains pending; optional OTLP cache/messaging export is configured but no collector delivery was exercised locally;
+- the bundled local dashboard is transient and anonymous on loopback; a production deployment still requires authenticated storage, TLS, retention and sampling decisions;
 - dashboard invalidation is conservative across stores and introduces a shared generation write-lock point; there is no cold-miss coalescing or production-scale benchmark yet;
 - role creation/deletion remains unsupported; the four system profiles are fixed;
 - the supplied Compose still uses local HTTP and SQL `sa`; real deployment requires TLS, external secret management and least-privilege runtime/migration identities;
 - any old public sample value remains permanently public in Git history and must never be reused.
 
 ## Validation status
+
+Prompt 11 validated on Windows on 2026-09-06 with .NET SDK 10.0.400, Node 24.19.0/npm 11.17.0, SQL Server Express and an isolated authenticated Redis 8.2.9 process:
+
+- tool restore, backend restore, formatting verification and build passed with zero warnings/errors;
+- 60 unit tests and 56 non-broker integration tests passed (116 total) against real SQL Server/Redis; the remaining real-RabbitMQ end-to-end test is present and was not silently substituted;
+- the observability HTTP integration test verified validated correlation response propagation, a distinct 32-character W3C trace ID in headers/Problem Details and a real SqlClient span;
+- every integration fixture migrated a fresh SQL database through all thirteen migrations; EF reported no pending model changes and generated an 85,872-byte idempotent script;
+- DbMigrator upgraded the local StoreControl database successfully; direct SQL confirmed the AsyncTraceContext migration and both Outbox trace columns;
+- frontend `npm ci`, typecheck, lint, production build and production-dependency audit passed; 134 modules transformed and zero vulnerabilities were reported;
+- Compose interpolation/syntax passed with the Aspire Dashboard and API/Worker OTLP endpoints;
+- Docker runtime/container/dashboard delivery and the real-RabbitMQ test remain environmentally blocked because the Docker Desktop Linux engine pipe is unavailable after the existing `sailor-ingest.sock` startup failure; no Docker reset, volume deletion or fake collector was used;
+- seven incremental Prompt 11 commits were pushed successfully to `origin/main`.
+
+To close the environmental gap, repair Docker Desktop, run `docker compose up --build`, inspect one sale trace in the loopback Aspire Dashboard and execute unfiltered `dotnet test StoreControl.sln --no-build` with the documented RabbitMQ variables.
 
 Prompt 10 validated on Windows on 2026-09-05 (September 6 UTC), with .NET SDK 10.0.400, Node/npm, SQL Server Express and authenticated Redis 8.2.9:
 

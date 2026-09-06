@@ -158,11 +158,12 @@ Current schemas:
 
 ## Cross-cutting behavior
 
-- X-Correlation-ID is returned and enriched into structured logs;
+- X-Correlation-ID and the distinct W3C X-Trace-ID are returned and enriched into structured logs;
 - malformed correlation IDs are replaced before reaching response headers and structured logs;
 - expected validation, not-found, conflict and forbidden exceptions become appropriate Problem Details;
 - unexpected exceptions are logged once at the API boundary;
-- OpenTelemetry traces ASP.NET Core and outgoing HTTP;
+- OpenTelemetry exports scoped logs, ASP.NET Core/HTTP/SqlClient and explicit business/cache/messaging/dependency traces, plus runtime and bounded business metrics;
+- sale trace context is stored with its transactional Outbox event and continued through RabbitMQ into the Worker;
 - public liveness/readiness responses expose only aggregate status; the authenticated smoke endpoint carries diagnostic database metadata;
 - login and refresh use a fixed-window per-source rate limit in addition to Identity account lockout;
 - API and Web add defensive response headers; the Web container also applies a same-origin content security policy;

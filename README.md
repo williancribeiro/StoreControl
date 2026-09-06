@@ -12,8 +12,8 @@ A fundação, segurança, lojas, cadastros, estoque por produto/loja, compras/re
 - Entity Framework Core 10, ASP.NET Core Identity e SQL Server;
 - JWT curto, refresh token rotativo em cookie HttpOnly e policies por permissão;
 - React, TypeScript, Vite, React Router, Axios e React Hook Form;
-- Swagger/OpenAPI, Problem Details, Serilog, correlation ID e tracing OpenTelemetry inicial;
-- Docker Compose com SQL Server, Redis e RabbitMQ;
+- Swagger/OpenAPI, Problem Details, Serilog, correlation ID e OpenTelemetry para logs, traces e métricas;
+- Docker Compose com SQL Server, Redis, RabbitMQ e painel local de observabilidade;
 - cache de dashboard/categorias com invalidação transacional, TTL, fallback SQL, métricas e traces;
 - Outbox transacional, RabbitMQ com confirmação/retry/DLQ e Worker com Inbox idempotente;
 - xUnit, integração com SQL Server, Redis e RabbitMQ reais e GitHub Actions.
@@ -34,6 +34,7 @@ Endereços padrão da própria máquina local:
 - Swagger: http://localhost:5090/swagger;
 - health: http://localhost:5090/health;
 - RabbitMQ Management: http://localhost:15672.
+- Aspire Dashboard (telemetria local): http://localhost:18888.
 
 O DbMigrator aplica migrations e seeds antes de API e Worker iniciarem. A API nunca altera o schema no startup.
 
@@ -59,7 +60,7 @@ Com o seed demonstrativo habilitado, o migrador também garante 8 categorias, 12
 É possível usar SQL Server local ou subir somente dependências com Compose:
 
     .\scripts\Initialize-LocalEnvironment.ps1 -EnableDemoData
-    docker compose up -d sqlserver redis rabbitmq
+    docker compose up -d sqlserver redis rabbitmq aspire-dashboard
 
 Execute o carregador em cada terminal que iniciará uma aplicação .NET; ele não exibe os valores:
 

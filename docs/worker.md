@@ -18,6 +18,6 @@ The API owns Outbox publication because the Outbox is produced by API business t
 
 On shutdown the hosted consumer observes the cancellation token, cancels its broker consumer when possible and disposes its channel/connection. An in-flight unacknowledged delivery is requeued by RabbitMQ. Initial connection failures and later channel shutdowns enter a bounded recovery loop rather than terminating the process silently.
 
-With `Messaging:Enabled=false`, the process starts in intentionally inactive mode. Compose enables messaging and waits for Migrator and RabbitMQ health before starting Worker. Optional `OpenTelemetry:OtlpEndpoint` exports `StoreControl.Messaging` telemetry.
+With `Messaging:Enabled=false`, the process starts in intentionally inactive mode. Compose enables messaging and waits for Migrator and RabbitMQ health before starting Worker. `OpenTelemetry:OtlpEndpoint` exports scoped logs, messaging/SqlClient traces and messaging/runtime metrics. The consumer restores RabbitMQ trace headers as a remote W3C parent, so Worker SQL spans remain connected to the originating sale trace.
 
 See [messaging.md](messaging.md) for topology, delivery semantics and debugging.

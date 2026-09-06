@@ -27,9 +27,9 @@ The sale operation UUID is the Outbox/event/message UUID. A successful HTTP idem
 
 ## Producer and Outbox
 
-`SaleService` writes the Outbox row before committing its existing cross-module transaction. `OutboxDispatcher`, hosted only by the API, atomically claims a bounded batch using SQL Server `UPDLOCK`, `READPAST`, `ROWLOCK` and a lease. A crashed dispatcher leaves rows recoverable after the lease expires.
+`SaleService` writes the Outbox row, correlation ID and current W3C `traceparent`/`tracestate` before committing its existing cross-module transaction. `OutboxDispatcher`, hosted only by the API, atomically claims a bounded batch using SQL Server `UPDLOCK`, `READPAST`, `ROWLOCK` and a lease. A crashed dispatcher leaves rows recoverable after the lease expires.
 
-The publisher declares topology idempotently, uses persistent messages, mandatory routing and publisher confirms. Only a confirmed publish sets `PublishedAtUtc`. A connection failure records a bounded error, clears the lease and schedules exponential SQL backoff. A crash after confirm but before the SQL update can publish twice; this is expected at-least-once delivery, not an exactly-once claim.
+The publisher declares topology idempotently, uses persistent messages, mandatory routing and publisher confirms. It creates a producer span from the stored Outbox parent and writes the resulting W3C headers to RabbitMQ. Only a confirmed publish sets `PublishedAtUtc`. A connection failure records a bounded error, clears the lease and schedules exponential SQL backoff. A crash after confirm but before the SQL update can publish twice; this is expected at-least-once delivery, not an exactly-once claim.
 
 ## Topology
 
@@ -49,7 +49,7 @@ Each retry queue dead-letters its expired message back to the event exchange. Th
 
 ## Consumer, retry and acknowledgement
 
-The Worker sets bounded prefetch and processes callbacks sequentially. For each delivery it validates envelope type, UUID, schema version and payload against the authoritative sale. It then opens a serializable SQL transaction:
+The Worker sets bounded prefetch and processes callbacks sequentially. For each delivery it restores a remote W3C parent, starts a consumer span, validates envelope type, UUID, schema version and payload against the authoritative sale, and then opens a serializable SQL transaction:
 
 1. read the Inbox key `(consumer, messageId)`;
 2. if it exists with the same payload SHA-256, return `Duplicate`;
@@ -76,6 +76,6 @@ For a missing post-sale result:
 3. inspect the event exchange binding and main/retry/DLQ depths in RabbitMQ Management;
 4. correlate API/Worker JSON logs by message ID and correlation ID;
 5. inspect `integration.InboxMessages` and `integration.SaleReceiptDeliveries`;
-6. inspect `StoreControl.Messaging` publish/delivery counters and producer/consumer spans.
+6. inspect `StoreControl.Messaging` publish/delivery counters, latency histograms and producer/consumer spans; the original HTTP `X-Trace-ID` remains the same across the asynchronous path.
 
 Never manually mark an Outbox row published or move a DLQ message before understanding and correcting the failure. See [ADR 0006](adr/0006-transactional-outbox-and-sale-integration.md).

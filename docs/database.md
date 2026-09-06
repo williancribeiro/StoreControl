@@ -58,7 +58,7 @@ reporting:
 
 integration:
 
-- OutboxMessages: durable post-sale event payload, routing/correlation metadata, publication state, attempts, backoff and expiring dispatcher lease;
+- OutboxMessages: durable post-sale event payload, routing/correlation/W3C trace metadata, publication state, attempts, backoff and expiring dispatcher lease;
 - InboxMessages: consumer/message composite identity, SHA-256 payload hash and processing time;
 - SaleReceiptDeliveries: one simulated post-sale delivery audit per event and sale, with status and optional SHA-256 destination hash.
 
@@ -85,8 +85,9 @@ Normalized e-mail and normalized username are protected by filtered unique index
 - 20260903024210_OptimizeReportingQueries: makes the unique sale-item index cover quantity and line subtotal for the ranking query.
 - 20260905004822_CacheGenerations: two `platform.CacheRevisions` rows and six DML triggers for transactional dashboard/category invalidation; EF trigger-bearing tables disable direct OUTPUT while retaining generated identity/rowversion values.
 - 20260906001321_TransactionalMessaging: integration schema with transactional Outbox, consumer Inbox and simulated sale-receipt delivery audit, including JSON/lease/status constraints and publication/identity indexes.
+- 20260906200531_AsyncTraceContext: nullable `TraceParent` and `TraceState` fields that preserve causal tracing across delayed Outbox publication.
 
-All twelve migrations were validated from an empty database, and EF reports no pending model changes. Earlier validation also executed the complete idempotent SQL script twice and the cache migration rollback/reapply. Fixed CREATE VIEW/PROCEDURE/TRIGGER DDL is wrapped in EXEC batches to support EF's conditional idempotent scripts. This also corrects the earlier reporting script's batch-compatibility problem without changing its schema definitions. Use `sqlcmd -I` when executing manually so QUOTED_IDENTIFIER is enabled for filtered indexes.
+All thirteen migrations were validated from an empty database, and EF reports no pending model changes. Earlier validation also executed the complete idempotent SQL script twice and the cache migration rollback/reapply. Fixed CREATE VIEW/PROCEDURE/TRIGGER DDL is wrapped in EXEC batches to support EF's conditional idempotent scripts. This also corrects the earlier reporting script's batch-compatibility problem without changing its schema definitions. Use `sqlcmd -I` when executing manually so QUOTED_IDENTIFIER is enabled for filtered indexes.
 
 ## Seeds
 

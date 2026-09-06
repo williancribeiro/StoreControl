@@ -1,5 +1,33 @@
 # Debugging map
 
+## Start from evidence
+
+Use one failing request as the diagnostic anchor:
+
+1. In Browser DevTools, reproduce with Network recording enabled and keep the request URL, method, status, timing, `X-Correlation-ID`, `X-Trace-ID` and `Idempotency-Key`. Do not copy Authorization, Cookie, passwords or response data into tickets.
+2. Search the Aspire Dashboard trace view by `X-Trace-ID`. The waterfall identifies whether time/failure belongs to ASP.NET Core, `sale.finalize`, Redis, SqlClient, RabbitMQ publication or Worker consumption.
+3. Search structured API/Worker logs by `TraceId`, `CorrelationId`, `MessageId` or the durable operation UUID. Compare timestamps; do not infer ordering from interleaved console text alone.
+4. Put Visual Studio breakpoints at the named checkpoint in the flow below. Inspect IDs and entity state, but avoid evaluating methods that mutate tracked entities.
+5. Query SQL Server using the operation/business reference and reconcile ledgers. Read first; do not "repair" rows until the failed invariant is understood.
+6. Use Redis CLI and RabbitMQ Management only when the trace reaches those boundaries. SQL remains the source of truth.
+
+The browser starts the HTTP request but currently does not create a browser OpenTelemetry span. `X-Trace-ID` is therefore the bridge from DevTools into the server trace. See [observability.md](observability.md) for signal names and privacy constraints.
+
+## Tool checkpoints
+
+| Tool | What to verify |
+| --- | --- |
+| Browser Console | React/runtime error and source-mapped stack; never paste token/cookie values |
+| Browser Network | request contract, status, timing, diagnostic headers, Problem Details and whether a retry occurred |
+| Visual Studio | controller input, application decision, EF change tracker, transaction boundary and thrown exception |
+| Structured logs | durable transition, bounded outcome and IDs; API and Worker service name |
+| Trace view | parent/child order, span status and latency across SQL/cache/RabbitMQ |
+| SQL Server | authoritative row/status/rowversion, transactionally paired ledgers and Outbox/Inbox state |
+| Redis | key existence, generation, TTL and availability; never edit business state because none belongs there |
+| RabbitMQ Management | bindings, ready/unacked counts, retry queues, DLQ and consumer connection |
+
+For SQL investigations, begin with parameterized `SELECT` statements in a read-only transaction when practical. For Redis, prefer `TTL`, `GET` for a known diagnostic key and bounded `SCAN`; never use `KEYS` on a shared/large instance. In RabbitMQ, do not purge, acknowledge, requeue or move DLQ messages as a first diagnostic step.
+
 ## Diagnostic conventions
 
 - `correlation ID` connects browser responses, Problem Details and structured API logs for one request;
@@ -110,17 +138,18 @@ Public `/health` routes intentionally return only aggregate status. Sign in and 
     Browser NewSalePage cart/payments
     → salesService Axios + Idempotency-Key
     → sales.manage policy
-    → SalesController
-    → SaleService store/session/product validation
+    → ASP.NET Core trace / SalesController
+    → sale.finalize span / SaleService store/session/product validation
     → Sale + StockBalance + CashSession Domain rules
     → SQL transaction
     → sales.Sales/SaleItems/SalePayments
     → inventory.StockBalances/StockMovements
     → cash.CashSessions/CashMovements
+    → integration.OutboxMessages (traceparent + correlation ID)
 
 For a 400, inspect cash-session/store matching, active customer/products, discount and exact payment sum. For a 403, inspect both `sales.manage` and `security.UserStoreRoles`. For a 409, distinguish insufficient stock, rowversion contention and idempotency-payload mismatch using Problem Details plus correlation ID.
 
-To trace a committed sale, start with `sales.Sales.OperationId`. It must match one stock movement reference per distinct product and one cash movement per payment. Reconcile historical item subtotals to the sale subtotal, payment sum to total, and only Cash payment movements to the change in physical `ExpectedCashAmount`. A failed sale must leave no sale row and no new movement under that operation UUID.
+To trace a committed sale, start with `X-Trace-ID` for execution timing and `sales.Sales.OperationId` for durable state. It must match one stock movement reference per distinct product, one cash movement per payment and one Outbox row. Reconcile historical item subtotals to the sale subtotal, payment sum to total, and only Cash payment movements to the change in physical `ExpectedCashAmount`. A failed sale must leave no sale row, ledger movement or Outbox event under that operation UUID.
 
 ## Sale cancellation
 
@@ -187,12 +216,12 @@ For unavailability, compare `/health/cache` with `/health/ready`: optional Redis
 ## Asynchronous post-sale path
 
     API sale transaction
-    → integration.OutboxMessages
-    → API OutboxDispatcher
-    → RabbitMQ events exchange
+    → integration.OutboxMessages (stored trace context)
+    → API OutboxDispatcher / producer span
+    → RabbitMQ events exchange + W3C headers
     → main / retry / DLQ queues
-    → Worker consumer
+    → Worker consumer span (remote parent)
     → integration.InboxMessages + SaleReceiptDeliveries
     → manual acknowledgement
 
-Start with the sale operation UUID. Follow it as Outbox/message ID, then inspect `PublishedAtUtc`, attempts/lease/error, queue depth, Worker logs, Inbox and delivery audit. A committed sale with an unpublished Outbox row points to dispatcher/broker availability. A published row without an Inbox result points to routing/consumer/retry/DLQ. An Inbox row proves the database effect committed before acknowledgement. See [messaging.md](messaging.md).
+Start with the HTTP `X-Trace-ID` or sale operation UUID. The trace should cross the stored Outbox parent, API producer and Worker remote consumer; the correlation ID remains a searchable application field. Follow the operation UUID as Outbox/message ID, then inspect `PublishedAtUtc`, attempts/lease/error, queue depth, Worker logs, Inbox and delivery audit. A committed sale with an unpublished Outbox row points to dispatcher/broker availability. A published row without an Inbox result points to routing/consumer/retry/DLQ. An Inbox row proves the database effect committed before acknowledgement. See [messaging.md](messaging.md).

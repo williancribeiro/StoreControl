@@ -1,12 +1,12 @@
 # Docker
 
-The root Compose file defines SQL Server, Redis, RabbitMQ, Migrator, API, Worker and Web.
+The root Compose file defines SQL Server, Redis, RabbitMQ, the standalone Aspire Dashboard, Migrator, API, Worker and Web.
 
 Startup order:
 
     SQL Server healthy
     → DbMigrator applies migrations and seeds
-    → API and Worker start
+    → API and Worker start and export OTLP to Aspire Dashboard
     → Web proxies /api to API
 
 ## Local secret initialization
@@ -25,6 +25,8 @@ API uses authenticated Redis for dashboard/category cache and authenticated Rabb
 
 API does not wait for Redis readiness: a cold or unavailable Redis uses SQL fallback and reconnects automatically. It also does not wait for RabbitMQ: sales remain available through the SQL Outbox during broker outages. Worker waits for RabbitMQ health because it has no useful workload without the broker and does not depend on Redis. `MESSAGING_ENABLED=false` intentionally disables dispatcher and consumer; the topology prefix can isolate a local experiment. Images use explicit servicing/major-minor tags, every published port binds to 127.0.0.1, application containers prohibit privilege escalation, and separate edge/backend networks prevent Web from directly reaching the data services.
 
+The Aspire Dashboard receives OTLP from API and Worker at its internal gRPC port. Its UI and host OTLP port default to `127.0.0.1:18888` and `127.0.0.1:4317`; override them with `OBSERVABILITY_DASHBOARD_PORT` and `OTLP_GRPC_PORT` if occupied. Anonymous access is enabled only for this loopback development service. Do not expose it to another network or reuse this setting in production. Telemetry is transient and not a source of business truth.
+
 `CACHE_ENABLED` defaults to true in Compose and the local environment loader. Set it to false to compare uncached requests. `CACHE_KEY_PREFIX`, `CACHE_DASHBOARD_TTL_SECONDS`, `CACHE_CATEGORIES_TTL_SECONDS` and `CACHE_TIMEOUT_MILLISECONDS` have safe defaults. API receives `Cache__RedisConnection` using the generated `REDIS_PASSWORD`; Web and Worker do not receive Redis credentials. See [caching.md](caching.md) for the complete contract.
 
 The development Compose deliberately uses HTTP, SQL `sa` and the ASP.NET Core Development environment to support local Swagger. It must not be published as a production deployment. See [security.md](security.md).
@@ -35,6 +37,6 @@ Compose configuration must be validated with a generated, ignored environment fi
 
     docker compose --env-file .env config --quiet
 
-Compose interpolation and syntax passed on 2026-09-04. Container build/start is still blocked: Docker Desktop fails during `initializing Ingest server` because it cannot remove/access `AppData/Local/Docker/run/sailor-ingest.sock`, and the Linux engine pipe never becomes available. No Docker reset or volume deletion was attempted.
+Compose interpolation and syntax, including the dashboard and API/Worker OTLP endpoints, passed on 2026-09-06. Container build/start is still blocked: Docker Desktop cannot expose its Linux engine pipe on this host after its existing `sailor-ingest.sock` startup failure. No Docker reset or volume deletion was attempted.
 
 Real service validation uses SQL Server Express and an isolated, authenticated [Redis 8.2.9 Windows community build](https://github.com/redis-windows/redis-windows/releases/tag/8.2.9), downloaded under ignored `work/` with the published SHA-256 verified. This is a validation fallback, not a new project dependency or proof that the Linux container runtime passed. CI uses the official Redis Linux image. Rerun `docker compose up --build` when the Docker engine is available.
