@@ -11,6 +11,8 @@
     <PackageReference Include="Microsoft.Extensions.Hosting" />
     <PackageReference Include="OpenTelemetry.Exporter.OpenTelemetryProtocol" />
     <PackageReference Include="OpenTelemetry.Extensions.Hosting" />
+    <PackageReference Include="OpenTelemetry.Instrumentation.Runtime" />
+    <PackageReference Include="OpenTelemetry.Instrumentation.SqlClient" />
     <PackageReference Include="Serilog.Extensions.Hosting" />
     <PackageReference Include="Serilog.Formatting.Compact" />
     <PackageReference Include="Serilog.Settings.Configuration" />

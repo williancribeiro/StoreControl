@@ -3,6 +3,7 @@ using System.Security.Claims;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.OpenApi;
 using OpenTelemetry.Resources;
+using OpenTelemetry.Logs;
 using OpenTelemetry.Metrics;
 using OpenTelemetry.Trace;
 using Serilog;
@@ -23,11 +24,43 @@ Log.Logger = new LoggerConfiguration()
 try
 {
     var builder = WebApplication.CreateBuilder(args);
+    Activity.DefaultIdFormat = ActivityIdFormat.W3C;
+    Activity.ForceDefaultIdFormat = true;
+
+    var serviceVersion = typeof(Program).Assembly.GetName().Version?.ToString();
+    var resourceBuilder = ResourceBuilder.CreateDefault()
+        .AddService(
+            serviceName: "StoreControl.Api",
+            serviceNamespace: "StoreControl",
+            serviceVersion: serviceVersion,
+            serviceInstanceId: Environment.ProcessId.ToString(System.Globalization.CultureInfo.InvariantCulture))
+        .AddAttributes([
+            new KeyValuePair<string, object>("deployment.environment.name", builder.Environment.EnvironmentName)
+        ]);
 
     builder.Host.UseSerilog((context, services, configuration) => configuration
         .ReadFrom.Configuration(context.Configuration)
         .ReadFrom.Services(services)
         .Enrich.FromLogContext());
+
+    var otlpEndpointValue = builder.Configuration["OpenTelemetry:OtlpEndpoint"];
+    Uri? otlpEndpoint = null;
+    if (!string.IsNullOrWhiteSpace(otlpEndpointValue)
+        && !Uri.TryCreate(otlpEndpointValue, UriKind.Absolute, out otlpEndpoint))
+    {
+        throw new InvalidOperationException("OpenTelemetry:OtlpEndpoint must be an absolute URI when configured.");
+    }
+
+    builder.Logging.AddOpenTelemetry(logging =>
+    {
+        logging.IncludeScopes = true;
+        logging.IncludeFormattedMessage = true;
+        logging.SetResourceBuilder(resourceBuilder);
+        if (otlpEndpoint is not null)
+        {
+            logging.AddOtlpExporter(options => options.Endpoint = otlpEndpoint);
+        }
+    });
 
     builder.Services.AddControllers();
     builder.Services.AddStoreControlSecurity(builder.Configuration);
@@ -92,23 +125,32 @@ try
 
     var telemetryBuilder = builder.Services
         .AddOpenTelemetry()
-        .ConfigureResource(resource => resource.AddService("StoreControl.Api"))
+        .ConfigureResource(resource => resource.AddService(
+            serviceName: "StoreControl.Api",
+            serviceNamespace: "StoreControl",
+            serviceVersion: serviceVersion,
+            serviceInstanceId: Environment.ProcessId.ToString(System.Globalization.CultureInfo.InvariantCulture))
+            .AddAttributes([
+                new KeyValuePair<string, object>("deployment.environment.name", builder.Environment.EnvironmentName)
+            ]))
         .WithTracing(tracing => tracing
             .AddSource(CacheTelemetry.SourceName)
             .AddSource(MessagingTelemetry.SourceName)
             .AddAspNetCoreInstrumentation()
-            .AddHttpClientInstrumentation())
+            .AddHttpClientInstrumentation()
+            .AddSqlClientInstrumentation())
         .WithMetrics(metrics => metrics
             .AddMeter(CacheTelemetry.SourceName)
-            .AddMeter(MessagingTelemetry.SourceName));
+            .AddMeter(MessagingTelemetry.SourceName)
+            .AddAspNetCoreInstrumentation()
+            .AddRuntimeInstrumentation());
 
-    var otlpEndpoint = builder.Configuration["OpenTelemetry:OtlpEndpoint"];
-    if (Uri.TryCreate(otlpEndpoint, UriKind.Absolute, out var endpoint))
+    if (otlpEndpoint is not null)
     {
         telemetryBuilder.WithTracing(tracing => tracing.AddOtlpExporter(options =>
-            options.Endpoint = endpoint));
+            options.Endpoint = otlpEndpoint));
         telemetryBuilder.WithMetrics(metrics => metrics.AddOtlpExporter(options =>
-            options.Endpoint = endpoint));
+            options.Endpoint = otlpEndpoint));
     }
 
     var app = builder.Build();

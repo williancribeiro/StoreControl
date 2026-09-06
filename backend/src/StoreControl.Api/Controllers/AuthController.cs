@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using System.Diagnostics;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.AspNetCore.Mvc;
@@ -131,7 +132,7 @@ public sealed class AuthController(
         Extensions =
         {
             ["errorCode"] = "invalid_authentication",
-            ["traceId"] = HttpContext.TraceIdentifier,
+            ["traceId"] = Activity.Current?.TraceId.ToString() ?? HttpContext.TraceIdentifier,
             ["correlationId"] = HttpContext.TraceIdentifier
         }
     });
