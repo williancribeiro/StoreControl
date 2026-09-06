@@ -13,22 +13,29 @@ internal sealed class RabbitMqHealthCheck(
         HealthCheckContext context,
         CancellationToken cancellationToken = default)
     {
+        using var telemetry = DependencyHealthTelemetry.Start("rabbitmq");
         if (!options.Value.Enabled)
         {
-            return HealthCheckResult.Healthy("Messaging disabled.");
+            var disabled = HealthCheckResult.Healthy("Messaging disabled.");
+            telemetry.Complete(disabled.Status);
+            return disabled;
         }
 
         try
         {
             var rabbitConnection = await connection.GetAsync(cancellationToken);
-            return rabbitConnection.IsOpen
+            var health = rabbitConnection.IsOpen
                 ? HealthCheckResult.Healthy()
                 : HealthCheckResult.Degraded("RabbitMQ connection is recovering.");
+            telemetry.Complete(health.Status);
+            return health;
         }
         catch (Exception exception) when (exception is BrokerUnreachableException or IOException or TimeoutException)
         {
-            return HealthCheckResult.Degraded(
+            var health = HealthCheckResult.Degraded(
                 "RabbitMQ unavailable; sale processing remains available through the SQL Outbox.");
+            telemetry.Complete(health.Status);
+            return health;
         }
     }
 }

@@ -10,23 +10,28 @@ internal sealed class SqlServerHealthCheck(IServiceScopeFactory scopeFactory) : 
         HealthCheckContext context,
         CancellationToken cancellationToken = default)
     {
+        using var telemetry = DependencyHealthTelemetry.Start("sqlserver");
         try
         {
             await using var scope = scopeFactory.CreateAsyncScope();
             var smokeCheck = scope.ServiceProvider.GetRequiredService<IDatabaseSmokeCheck>();
             var result = await smokeCheck.CheckAsync(cancellationToken);
 
-            return HealthCheckResult.Healthy(
+            var health = HealthCheckResult.Healthy(
                 "SQL Server disponível.",
                 new Dictionary<string, object>
                 {
                     ["foundationVersion"] = result.FoundationVersion,
                     ["serverUtcTime"] = result.ServerUtcTime
                 });
+            telemetry.Complete(health.Status);
+            return health;
         }
         catch (Exception exception)
         {
-            return HealthCheckResult.Unhealthy("SQL Server indisponível.", exception);
+            var health = HealthCheckResult.Unhealthy("SQL Server indisponível.", exception);
+            telemetry.Complete(health.Status);
+            return health;
         }
     }
 }

@@ -132,6 +132,26 @@ internal sealed class SaleService(
         FinalizeSaleCommand command,
         CancellationToken cancellationToken)
     {
+        using var operation = BusinessTelemetry.StartSaleFinalization(command.OperationId, command.StoreId);
+        try
+        {
+            var result = await FinalizeCoreAsync(userId, correlationId, command, cancellationToken);
+            operation.Complete(result);
+            return result;
+        }
+        catch (Exception exception)
+        {
+            operation.Fail(exception);
+            throw;
+        }
+    }
+
+    private async Task<FinalizeSaleResult> FinalizeCoreAsync(
+        Guid userId,
+        string correlationId,
+        FinalizeSaleCommand command,
+        CancellationToken cancellationToken)
+    {
         ValidateCommand(command);
         var accessibleStoreIds = await GetAccessibleStoreIdsAsync(userId, cancellationToken);
         EnsureStoreIsAccessible(command.StoreId, accessibleStoreIds);

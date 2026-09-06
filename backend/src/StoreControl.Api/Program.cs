@@ -15,7 +15,9 @@ using StoreControl.Api.Middleware;
 using StoreControl.Api.Security;
 using StoreControl.Infrastructure;
 using StoreControl.Infrastructure.Caching;
+using StoreControl.Infrastructure.HealthChecks;
 using StoreControl.Infrastructure.Messaging;
+using StoreControl.Infrastructure.Sales;
 
 Log.Logger = new LoggerConfiguration()
     .WriteTo.Console(new CompactJsonFormatter())
@@ -135,12 +137,16 @@ try
             ]))
         .WithTracing(tracing => tracing
             .AddSource(CacheTelemetry.SourceName)
+            .AddSource(BusinessTelemetry.SourceName)
+            .AddSource(DependencyHealthTelemetry.SourceName)
             .AddSource(MessagingTelemetry.SourceName)
             .AddAspNetCoreInstrumentation()
             .AddHttpClientInstrumentation()
             .AddSqlClientInstrumentation())
         .WithMetrics(metrics => metrics
             .AddMeter(CacheTelemetry.SourceName)
+            .AddMeter(BusinessTelemetry.SourceName)
+            .AddMeter(DependencyHealthTelemetry.SourceName)
             .AddMeter(MessagingTelemetry.SourceName)
             .AddAspNetCoreInstrumentation()
             .AddRuntimeInstrumentation());

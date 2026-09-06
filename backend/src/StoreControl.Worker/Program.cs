@@ -6,6 +6,7 @@ using OpenTelemetry.Trace;
 using Serilog;
 using Serilog.Formatting.Compact;
 using StoreControl.Infrastructure;
+using StoreControl.Infrastructure.HealthChecks;
 using StoreControl.Infrastructure.Messaging;
 
 Log.Logger = new LoggerConfiguration()
@@ -67,9 +68,11 @@ try
                 new KeyValuePair<string, object>("deployment.environment.name", builder.Environment.EnvironmentName)
             ]))
         .WithTracing(tracing => tracing
+            .AddSource(DependencyHealthTelemetry.SourceName)
             .AddSource(MessagingTelemetry.SourceName)
             .AddSqlClientInstrumentation())
         .WithMetrics(metrics => metrics
+            .AddMeter(DependencyHealthTelemetry.SourceName)
             .AddMeter(MessagingTelemetry.SourceName)
             .AddRuntimeInstrumentation());
 

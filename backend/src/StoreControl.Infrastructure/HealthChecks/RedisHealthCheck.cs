@@ -10,9 +10,12 @@ internal sealed class RedisHealthCheck(RedisConnection connection, IOptions<Cach
     public async Task<HealthCheckResult> CheckHealthAsync(
         HealthCheckContext context, CancellationToken cancellationToken = default)
     {
+        using var telemetry = DependencyHealthTelemetry.Start("redis");
         if (!options.Value.Enabled)
         {
-            return HealthCheckResult.Healthy("Cache disabled.");
+            var disabled = HealthCheckResult.Healthy("Cache disabled.");
+            telemetry.Complete(disabled.Status);
+            return disabled;
         }
 
         try
@@ -20,11 +23,15 @@ internal sealed class RedisHealthCheck(RedisConnection connection, IOptions<Cach
             var database = await connection.GetDatabaseAsync(cancellationToken);
             await database.PingAsync().WaitAsync(
                 TimeSpan.FromMilliseconds(options.Value.TimeoutMilliseconds), cancellationToken);
-            return HealthCheckResult.Healthy();
+            var health = HealthCheckResult.Healthy();
+            telemetry.Complete(health.Status);
+            return health;
         }
         catch (Exception exception) when (exception is RedisException or TimeoutException)
         {
-            return HealthCheckResult.Degraded("Redis unavailable; SQL fallback remains available.");
+            var health = HealthCheckResult.Degraded("Redis unavailable; SQL fallback remains available.");
+            telemetry.Complete(health.Status);
+            return health;
         }
     }
 }
