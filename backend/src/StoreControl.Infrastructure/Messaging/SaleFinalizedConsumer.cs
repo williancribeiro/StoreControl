@@ -100,6 +100,13 @@ internal sealed class SaleFinalizedConsumer(
             activity?.SetTag("messaging.destination.name", topology.SaleFinalizedQueue);
             activity?.SetTag("messaging.message.id", messageId);
             activity?.SetTag("messaging.message.retry_count", retryCount);
+            using var logScope = logger.BeginScope(new Dictionary<string, object?>
+            {
+                ["CorrelationId"] = delivery.BasicProperties.CorrelationId ?? messageId.ToString("D"),
+                ["MessageId"] = messageId,
+                ["TraceId"] = activity?.TraceId.ToString(),
+                ["SpanId"] = activity?.SpanId.ToString()
+            });
 
             await using var scope = scopeFactory.CreateAsyncScope();
             var processor = scope.ServiceProvider.GetRequiredService<SaleFinalizedProcessor>();

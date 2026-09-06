@@ -21,6 +21,8 @@ internal sealed class OutboxMessageConfiguration : IEntityTypeConfiguration<Outb
         builder.Property(message => message.RoutingKey).HasMaxLength(120);
         builder.Property(message => message.Payload).HasColumnType("nvarchar(max)");
         builder.Property(message => message.CorrelationId).HasMaxLength(100);
+        builder.Property(message => message.TraceParent).HasMaxLength(55);
+        builder.Property(message => message.TraceState).HasMaxLength(512);
         builder.Property(message => message.OccurredAtUtc).HasPrecision(3);
         builder.Property(message => message.CreatedAtUtc).HasPrecision(3);
         builder.Property(message => message.NextAttemptAtUtc).HasPrecision(3);

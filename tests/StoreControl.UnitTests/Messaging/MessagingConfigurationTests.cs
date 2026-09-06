@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using StoreControl.Infrastructure.Messaging;
 using RabbitMQ.Client;
 
@@ -51,6 +52,20 @@ public sealed class MessagingConfigurationTests
 
         Assert.Equal(2, RabbitMessageHeaders.RetryCount(valid));
         Assert.Throws<PermanentMessageException>(() => RabbitMessageHeaders.RetryCount(invalid));
+    }
+
+    [Fact]
+    public void Persisted_w3c_context_can_be_restored_for_async_publication()
+    {
+        const string traceParent = "00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01";
+        const string traceState = "vendor=opaque";
+
+        var context = RabbitMessageHeaders.ParentContext(traceParent, traceState);
+
+        Assert.Equal("4bf92f3577b34da6a3ce929d0e0e4736", context.TraceId.ToString());
+        Assert.Equal("00f067aa0ba902b7", context.SpanId.ToString());
+        Assert.True(context.TraceFlags.HasFlag(ActivityTraceFlags.Recorded));
+        Assert.Equal(traceState, context.TraceState);
     }
 
     private static MessagingOptions CreateValidOptions(

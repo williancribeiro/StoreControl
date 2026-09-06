@@ -12,7 +12,9 @@ internal sealed class OutboxMessage
         string routingKey,
         string payload,
         string correlationId,
-        DateTime occurredAtUtc)
+        DateTime occurredAtUtc,
+        string? traceParent,
+        string? traceState)
     {
         if (id == Guid.Empty) throw new ArgumentException("Message ID is required.", nameof(id));
         Id = id;
@@ -20,6 +22,8 @@ internal sealed class OutboxMessage
         RoutingKey = routingKey;
         Payload = payload;
         CorrelationId = correlationId;
+        TraceParent = traceParent;
+        TraceState = traceState;
         OccurredAtUtc = occurredAtUtc;
         CreatedAtUtc = DateTime.UtcNow;
         NextAttemptAtUtc = CreatedAtUtc;
@@ -30,6 +34,8 @@ internal sealed class OutboxMessage
     public string RoutingKey { get; private set; } = string.Empty;
     public string Payload { get; private set; } = string.Empty;
     public string CorrelationId { get; private set; } = string.Empty;
+    public string? TraceParent { get; private set; }
+    public string? TraceState { get; private set; }
     public DateTime OccurredAtUtc { get; private set; }
     public DateTime CreatedAtUtc { get; private set; }
     public DateTime NextAttemptAtUtc { get; private set; }

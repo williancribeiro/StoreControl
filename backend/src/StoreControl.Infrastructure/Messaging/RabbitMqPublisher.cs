@@ -14,7 +14,9 @@ internal sealed class RabbitMqPublisher(
     public async Task PublishOutboxAsync(OutboxMessage message, CancellationToken cancellationToken)
     {
         using var activity = MessagingTelemetry.Activities.StartActivity(
-            $"{topology.EventsExchange} publish", ActivityKind.Producer);
+            $"{topology.EventsExchange} publish",
+            ActivityKind.Producer,
+            RabbitMessageHeaders.ParentContext(message.TraceParent, message.TraceState));
         activity?.SetTag("messaging.system", "rabbitmq");
         activity?.SetTag("messaging.destination.name", topology.EventsExchange);
         activity?.SetTag("messaging.rabbitmq.destination.routing_key", message.RoutingKey);

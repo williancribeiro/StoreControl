@@ -1,4 +1,5 @@
 using System.Net;
+using System.Diagnostics;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json;
@@ -90,6 +91,8 @@ public sealed class SalesAndCashTests(SqlServerApiFactory factory) : IClassFixtu
         var outbox = await dbContext.OutboxMessages.SingleAsync(item => item.Id == operationId);
         Assert.Equal(MessagingContracts.SaleFinalizedType, outbox.Type);
         Assert.Equal(MessagingContracts.SaleFinalizedRoutingKey, outbox.RoutingKey);
+        Assert.True(ActivityContext.TryParse(outbox.TraceParent, outbox.TraceState, out var outboxTraceContext));
+        Assert.NotEqual(default, outboxTraceContext.TraceId);
         var integrationEvent = MessagingContracts.DeserializeSaleFinalized(
             System.Text.Encoding.UTF8.GetBytes(outbox.Payload));
         Assert.Equal(sale.GetProperty("id").GetInt64(), integrationEvent.SaleId);

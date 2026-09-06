@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Text.Json;
 using StoreControl.Application.Messaging;
 using StoreControl.Domain.Sales;
@@ -29,13 +30,19 @@ internal static class MessagingContracts
             sale.TotalAmount,
             finalizedAtUtc);
 
+        var activity = Activity.Current;
+        var hasW3CContext = activity?.IdFormat == ActivityIdFormat.W3C
+            && ActivityContext.TryParse(activity.Id, activity.TraceStateString, out _);
+
         return new OutboxMessage(
             integrationEvent.EventId,
             SaleFinalizedType,
             SaleFinalizedRoutingKey,
             JsonSerializer.Serialize(integrationEvent, SerializerOptions),
             correlationId,
-            integrationEvent.FinalizedAtUtc);
+            integrationEvent.FinalizedAtUtc,
+            hasW3CContext ? activity!.Id : null,
+            hasW3CContext ? activity!.TraceStateString : null);
     }
 
     public static SaleFinalizedIntegrationEvent DeserializeSaleFinalized(ReadOnlySpan<byte> body) =>

@@ -63,6 +63,12 @@ internal sealed class OutboxDispatcher(
 
         foreach (var message in messages)
         {
+            using var logScope = logger.BeginScope(new Dictionary<string, object?>
+            {
+                ["CorrelationId"] = message.CorrelationId,
+                ["MessageId"] = message.Id,
+                ["EventType"] = message.Type
+            });
             try
             {
                 await publisher.PublishOutboxAsync(message, cancellationToken);

@@ -27,6 +27,11 @@ internal static class RabbitMessageHeaders
     {
         var traceParent = Utf8Header(properties, "traceparent");
         var traceState = Utf8Header(properties, "tracestate");
+        return ParentContext(traceParent, traceState);
+    }
+
+    public static ActivityContext ParentContext(string? traceParent, string? traceState)
+    {
         return ActivityContext.TryParse(traceParent, traceState, out var context)
             ? context
             : default;
