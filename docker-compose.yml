@@ -104,6 +104,13 @@ services:
       Cache__DashboardTtlSeconds: ${CACHE_DASHBOARD_TTL_SECONDS:-30}
       Cache__CategoriesTtlSeconds: ${CACHE_CATEGORIES_TTL_SECONDS:-300}
       Cache__TimeoutMilliseconds: ${CACHE_TIMEOUT_MILLISECONDS:-500}
+      Messaging__Enabled: ${MESSAGING_ENABLED:-true}
+      Messaging__HostName: rabbitmq
+      Messaging__Port: 5672
+      Messaging__UserName: ${RABBITMQ_DEFAULT_USER:-storecontrol}
+      Messaging__Password: ${RABBITMQ_DEFAULT_PASS:?Execute scripts/Initialize-LocalEnvironment.ps1 antes de iniciar o Compose}
+      Messaging__VirtualHost: /
+      Messaging__TopologyPrefix: ${MESSAGING_TOPOLOGY_PREFIX:-storecontrol}
     ports:
       - "127.0.0.1:${API_PORT:-5090}:8080"
     depends_on:
@@ -123,6 +130,13 @@ services:
       DOTNET_ENVIRONMENT: Development
       ConnectionStrings__StoreControl: >-
         Server=sqlserver,1433;Database=${STORECONTROL_DATABASE:-StoreControl};User Id=sa;Password=${MSSQL_SA_PASSWORD:?Execute scripts/Initialize-LocalEnvironment.ps1 antes de iniciar o Compose};Encrypt=False;TrustServerCertificate=True
+      Messaging__Enabled: ${MESSAGING_ENABLED:-true}
+      Messaging__HostName: rabbitmq
+      Messaging__Port: 5672
+      Messaging__UserName: ${RABBITMQ_DEFAULT_USER:-storecontrol}
+      Messaging__Password: ${RABBITMQ_DEFAULT_PASS:?Execute scripts/Initialize-LocalEnvironment.ps1 antes de iniciar o Compose}
+      Messaging__VirtualHost: /
+      Messaging__TopologyPrefix: ${MESSAGING_TOPOLOGY_PREFIX:-storecontrol}
     depends_on:
       migrator:
         condition: service_completed_successfully

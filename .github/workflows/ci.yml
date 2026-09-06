@@ -63,6 +63,30 @@ jobs:
           done
           exit 1
 
+      - name: Start RabbitMQ with an ephemeral credential
+        shell: bash
+        run: |
+          set -euo pipefail
+          rabbit_password="ScCiRabbit_$(openssl rand -hex 24)"
+          echo "::add-mask::$rabbit_password"
+          echo "STORECONTROL_TEST_RABBITMQ_HOST=127.0.0.1" >> "$GITHUB_ENV"
+          echo "STORECONTROL_TEST_RABBITMQ_PORT=5672" >> "$GITHUB_ENV"
+          echo "STORECONTROL_TEST_RABBITMQ_USERNAME=storecontrol" >> "$GITHUB_ENV"
+          echo "STORECONTROL_TEST_RABBITMQ_PASSWORD=$rabbit_password" >> "$GITHUB_ENV"
+          echo "STORECONTROL_TEST_RABBITMQ_VHOST=/" >> "$GITHUB_ENV"
+          docker run --detach --name storecontrol-ci-rabbitmq \
+            --env RABBITMQ_DEFAULT_USER=storecontrol \
+            --env RABBITMQ_DEFAULT_PASS="$rabbit_password" \
+            --publish 127.0.0.1:5672:5672 rabbitmq:4.2-management-alpine
+          for attempt in {1..30}; do
+            if docker exec storecontrol-ci-rabbitmq rabbitmq-diagnostics -q check_port_connectivity; then
+              exit 0
+            fi
+            sleep 2
+          done
+          docker logs storecontrol-ci-rabbitmq
+          exit 1
+
       - name: Restore .NET tools
         run: dotnet tool restore
 

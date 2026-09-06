@@ -28,7 +28,7 @@ foreach ($line in Get-Content -LiteralPath $resolvedEnvironmentFile) {
     $localValues[$key] = $value
 }
 
-foreach ($requiredKey in @('MSSQL_SA_PASSWORD', 'JWT_SIGNING_KEY', 'REDIS_PASSWORD')) {
+foreach ($requiredKey in @('MSSQL_SA_PASSWORD', 'JWT_SIGNING_KEY', 'REDIS_PASSWORD', 'RABBITMQ_DEFAULT_PASS')) {
     if (-not $localValues.ContainsKey($requiredKey) -or [string]::IsNullOrWhiteSpace($localValues[$requiredKey])) {
         throw "A variável obrigatória '$requiredKey' está ausente ou vazia."
     }
@@ -57,6 +57,23 @@ $cacheSettings = @{
     'CACHE_CATEGORIES_TTL_SECONDS' = @('Cache__CategoriesTtlSeconds', '300')
     'CACHE_TIMEOUT_MILLISECONDS' = @('Cache__TimeoutMilliseconds', '500')
 }
+
+$rabbitPort = if ($localValues.ContainsKey('RABBITMQ_PORT')) { $localValues['RABBITMQ_PORT'] } else { '5672' }
+$rabbitUser = if ($localValues.ContainsKey('RABBITMQ_DEFAULT_USER')) { $localValues['RABBITMQ_DEFAULT_USER'] } else { 'storecontrol' }
+$messagingEnabled = if ($localValues.ContainsKey('MESSAGING_ENABLED')) { $localValues['MESSAGING_ENABLED'] } else { 'true' }
+$topologyPrefix = if ($localValues.ContainsKey('MESSAGING_TOPOLOGY_PREFIX')) { $localValues['MESSAGING_TOPOLOGY_PREFIX'] } else { 'storecontrol' }
+[Environment]::SetEnvironmentVariable('Messaging__Enabled', $messagingEnabled, 'Process')
+[Environment]::SetEnvironmentVariable('Messaging__HostName', '127.0.0.1', 'Process')
+[Environment]::SetEnvironmentVariable('Messaging__Port', $rabbitPort, 'Process')
+[Environment]::SetEnvironmentVariable('Messaging__UserName', $rabbitUser, 'Process')
+[Environment]::SetEnvironmentVariable('Messaging__Password', $localValues['RABBITMQ_DEFAULT_PASS'], 'Process')
+[Environment]::SetEnvironmentVariable('Messaging__VirtualHost', '/', 'Process')
+[Environment]::SetEnvironmentVariable('Messaging__TopologyPrefix', $topologyPrefix, 'Process')
+[Environment]::SetEnvironmentVariable('STORECONTROL_TEST_RABBITMQ_HOST', '127.0.0.1', 'Process')
+[Environment]::SetEnvironmentVariable('STORECONTROL_TEST_RABBITMQ_PORT', $rabbitPort, 'Process')
+[Environment]::SetEnvironmentVariable('STORECONTROL_TEST_RABBITMQ_USERNAME', $rabbitUser, 'Process')
+[Environment]::SetEnvironmentVariable('STORECONTROL_TEST_RABBITMQ_PASSWORD', $localValues['RABBITMQ_DEFAULT_PASS'], 'Process')
+[Environment]::SetEnvironmentVariable('STORECONTROL_TEST_RABBITMQ_VHOST', '/', 'Process')
 foreach ($setting in $cacheSettings.GetEnumerator()) {
     $settingValue = if ($localValues.ContainsKey($setting.Key)) { $localValues[$setting.Key] } else { $setting.Value[1] }
     [Environment]::SetEnvironmentVariable($setting.Value[0], $settingValue, 'Process')
