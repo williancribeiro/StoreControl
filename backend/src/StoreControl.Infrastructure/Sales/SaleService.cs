@@ -11,6 +11,7 @@ using StoreControl.Domain.Inventory;
 using StoreControl.Domain.Sales;
 using StoreControl.Domain.Security;
 using StoreControl.Infrastructure.Persistence;
+using StoreControl.Infrastructure.Messaging;
 
 namespace StoreControl.Infrastructure.Sales;
 
@@ -266,6 +267,8 @@ internal sealed class SaleService(
                 }
 
                 dbContext.Sales.Add(sale);
+                await dbContext.SaveChangesAsync(cancellationToken);
+                dbContext.OutboxMessages.Add(MessagingContracts.CreateSaleFinalized(sale, correlationId));
                 await dbContext.SaveChangesAsync(cancellationToken);
                 await transaction.CommitAsync(cancellationToken);
                 logger.LogInformation(

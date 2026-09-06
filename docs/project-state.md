@@ -6,6 +6,8 @@ Last updated: 2026-09-04.
 
 Prompt 9 is implemented. Prompt 10 is in progress: ADR 0006 selects a post-sale receipt/integration event and defines transactional Outbox, confirmed RabbitMQ publication, manual acknowledgement, retry/DLQ and consumer Inbox idempotency. Implementation and validation are pending.
 
+Prompt 10 progress: migration `20260906001321_TransactionalMessaging` adds Outbox, Inbox and simulated receipt-delivery audit tables under the integration schema. Sale finalization writes one `sale.finalized.v1` Outbox event in its existing transaction, keyed by the sale operation UUID. Failed sales and idempotent replays cannot create stray/duplicate events. RabbitMQ transport and Worker consumption are pending.
+
 ## Implemented
 
 Foundation and security:

@@ -1709,6 +1709,146 @@ namespace StoreControl.Infrastructure.Persistence.Migrations
                     b.ToTable("UserStoreRoles", "security");
                 });
 
+            modelBuilder.Entity("StoreControl.Infrastructure.Messaging.InboxMessage", b =>
+                {
+                    b.Property<string>("Consumer")
+                        .HasMaxLength(120)
+                        .HasColumnType("nvarchar(120)");
+
+                    b.Property<Guid>("MessageId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<byte[]>("PayloadHash")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("binary(32)")
+                        .IsFixedLength();
+
+                    b.Property<DateTime>("ProcessedAtUtc")
+                        .HasPrecision(3)
+                        .HasColumnType("datetime2(3)");
+
+                    b.HasKey("Consumer", "MessageId");
+
+                    b.HasIndex("ProcessedAtUtc");
+
+                    b.ToTable("InboxMessages", "integration");
+                });
+
+            modelBuilder.Entity("StoreControl.Infrastructure.Messaging.OutboxMessage", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("CorrelationId")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasPrecision(3)
+                        .HasColumnType("datetime2(3)");
+
+                    b.Property<string>("LastError")
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<Guid?>("LockId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime?>("LockedUntilUtc")
+                        .HasPrecision(3)
+                        .HasColumnType("datetime2(3)");
+
+                    b.Property<DateTime>("NextAttemptAtUtc")
+                        .HasPrecision(3)
+                        .HasColumnType("datetime2(3)");
+
+                    b.Property<DateTime>("OccurredAtUtc")
+                        .HasPrecision(3)
+                        .HasColumnType("datetime2(3)");
+
+                    b.Property<string>("Payload")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("PublishAttempts")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime?>("PublishedAtUtc")
+                        .HasPrecision(3)
+                        .HasColumnType("datetime2(3)");
+
+                    b.Property<string>("RoutingKey")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("nvarchar(120)");
+
+                    b.Property<string>("Type")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("nvarchar(120)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PublishedAtUtc", "NextAttemptAtUtc", "LockedUntilUtc")
+                        .HasFilter("[PublishedAtUtc] IS NULL");
+
+                    SqlServerIndexBuilderExtensions.IncludeProperties(b.HasIndex("PublishedAtUtc", "NextAttemptAtUtc", "LockedUntilUtc"), new[] { "CreatedAtUtc", "PublishAttempts" });
+
+                    b.ToTable("OutboxMessages", "integration", t =>
+                        {
+                            t.HasCheckConstraint("CK_OutboxMessages_Lease", "([LockId] IS NULL AND [LockedUntilUtc] IS NULL) OR ([LockId] IS NOT NULL AND [LockedUntilUtc] IS NOT NULL)");
+
+                            t.HasCheckConstraint("CK_OutboxMessages_Payload_Json", "ISJSON([Payload]) = 1");
+
+                            t.HasCheckConstraint("CK_OutboxMessages_PublishAttempts", "[PublishAttempts] >= 0");
+                        });
+                });
+
+            modelBuilder.Entity("StoreControl.Infrastructure.Messaging.SaleReceiptDelivery", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<Guid>("MessageId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("ProcessedAtUtc")
+                        .HasPrecision(3)
+                        .HasColumnType("datetime2(3)");
+
+                    b.Property<byte[]>("RecipientHash")
+                        .HasMaxLength(32)
+                        .HasColumnType("binary(32)")
+                        .IsFixedLength();
+
+                    b.Property<long>("SaleId")
+                        .HasColumnType("bigint");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("MessageId")
+                        .IsUnique();
+
+                    b.HasIndex("SaleId")
+                        .IsUnique();
+
+                    b.ToTable("SaleReceiptDeliveries", "integration", t =>
+                        {
+                            t.HasCheckConstraint("CK_SaleReceiptDeliveries_Recipient", "([Status] = 1 AND [RecipientHash] IS NOT NULL) OR ([Status] = 2 AND [RecipientHash] IS NULL)");
+
+                            t.HasCheckConstraint("CK_SaleReceiptDeliveries_Status", "[Status] IN (1, 2)");
+                        });
+                });
+
             modelBuilder.Entity("StoreControl.Infrastructure.Persistence.Models.CacheRevision", b =>
                 {
                     b.Property<string>("Name")
@@ -2334,6 +2474,15 @@ namespace StoreControl.Infrastructure.Persistence.Migrations
                     b.Navigation("Store");
 
                     b.Navigation("User");
+                });
+
+            modelBuilder.Entity("StoreControl.Infrastructure.Messaging.SaleReceiptDelivery", b =>
+                {
+                    b.HasOne("StoreControl.Domain.Sales.Sale", null)
+                        .WithMany()
+                        .HasForeignKey("SaleId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("StoreControl.Domain.Cash.CashSession", b =>

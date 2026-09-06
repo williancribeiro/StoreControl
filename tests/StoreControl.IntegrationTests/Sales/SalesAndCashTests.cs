@@ -8,6 +8,7 @@ using Microsoft.Extensions.DependencyInjection;
 using StoreControl.Domain.Inventory;
 using StoreControl.Domain.Security;
 using StoreControl.Infrastructure.Persistence;
+using StoreControl.Infrastructure.Messaging;
 using StoreControl.IntegrationTests.Support;
 
 namespace StoreControl.IntegrationTests.Sales;
@@ -86,6 +87,13 @@ public sealed class SalesAndCashTests(SqlServerApiFactory factory) : IClassFixtu
             item.ReferenceType == "Sale" && item.ReferenceId == operationId.ToString("D")));
         Assert.Equal(2, await dbContext.CashMovements.CountAsync(item =>
             item.ReferenceType == "Sale" && item.ReferenceId == operationId.ToString("D")));
+        var outbox = await dbContext.OutboxMessages.SingleAsync(item => item.Id == operationId);
+        Assert.Equal(MessagingContracts.SaleFinalizedType, outbox.Type);
+        Assert.Equal(MessagingContracts.SaleFinalizedRoutingKey, outbox.RoutingKey);
+        var integrationEvent = MessagingContracts.DeserializeSaleFinalized(
+            System.Text.Encoding.UTF8.GetBytes(outbox.Payload));
+        Assert.Equal(sale.GetProperty("id").GetInt64(), integrationEvent.SaleId);
+        Assert.Equal(total, integrationEvent.TotalAmount);
     }
 
     [Fact]
@@ -119,6 +127,7 @@ public sealed class SalesAndCashTests(SqlServerApiFactory factory) : IClassFixtu
         Assert.Equal(0, await dbContext.Sales.CountAsync(item => item.OperationId == operationId));
         Assert.Equal(0, await dbContext.StockMovements.CountAsync(item =>
             item.ReferenceType == "Sale" && item.ReferenceId == operationId.ToString("D")));
+        Assert.Equal(0, await dbContext.OutboxMessages.CountAsync(item => item.Id == operationId));
     }
 
     [Fact]
@@ -196,6 +205,7 @@ public sealed class SalesAndCashTests(SqlServerApiFactory factory) : IClassFixtu
             item.ReferenceType == "Sale" && item.ReferenceId == operationId.ToString("D")));
         Assert.Equal(0, await assertDb.CashMovements.CountAsync(item =>
             item.ReferenceType == "Sale" && item.ReferenceId == operationId.ToString("D")));
+        Assert.Equal(0, await assertDb.OutboxMessages.CountAsync(item => item.Id == operationId));
     }
 
     [Fact]

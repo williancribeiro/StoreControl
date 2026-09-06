@@ -9,6 +9,7 @@ using StoreControl.Domain.Purchasing;
 using StoreControl.Domain.Sales;
 using StoreControl.Domain.Stores;
 using StoreControl.Infrastructure.Identity;
+using StoreControl.Infrastructure.Messaging;
 using StoreControl.Infrastructure.Persistence.Models;
 
 namespace StoreControl.Infrastructure.Persistence;
@@ -23,6 +24,12 @@ public sealed class StoreControlDbContext(DbContextOptions<StoreControlDbContext
     internal DbSet<DailySalesReportRow> DailySalesReportRows => Set<DailySalesReportRow>();
 
     internal DbSet<StockPositionReportRow> StockPositionReportRows => Set<StockPositionReportRow>();
+
+    internal DbSet<OutboxMessage> OutboxMessages => Set<OutboxMessage>();
+
+    internal DbSet<InboxMessage> InboxMessages => Set<InboxMessage>();
+
+    internal DbSet<SaleReceiptDelivery> SaleReceiptDeliveries => Set<SaleReceiptDelivery>();
 
     public DbSet<Store> Stores => Set<Store>();
 
