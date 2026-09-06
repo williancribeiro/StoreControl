@@ -1,4 +1,5 @@
 using StoreControl.Infrastructure.Messaging;
+using RabbitMQ.Client;
 
 namespace StoreControl.UnitTests.Messaging;
 
@@ -34,6 +35,22 @@ public sealed class MessagingConfigurationTests
         Assert.Equal("sale.finalized.v1.retry.2", topology.RetryRoutingKey(1));
         Assert.Equal("storecontrol.tests.42.worker.sale-finalized.retry.2", topology.RetryQueue(1));
         Assert.Equal("storecontrol.tests.42.worker.sale-finalized.dlq", topology.SaleFinalizedDeadLetterQueue);
+    }
+
+    [Fact]
+    public void Retry_header_accepts_broker_integer_and_rejects_untrusted_content()
+    {
+        var valid = new BasicProperties
+        {
+            Headers = new Dictionary<string, object?> { ["x-retry-count"] = 2 }
+        };
+        var invalid = new BasicProperties
+        {
+            Headers = new Dictionary<string, object?> { ["x-retry-count"] = "2" }
+        };
+
+        Assert.Equal(2, RabbitMessageHeaders.RetryCount(valid));
+        Assert.Throws<PermanentMessageException>(() => RabbitMessageHeaders.RetryCount(invalid));
     }
 
     private static MessagingOptions CreateValidOptions(

@@ -94,6 +94,25 @@ public sealed class SalesAndCashTests(SqlServerApiFactory factory) : IClassFixtu
             System.Text.Encoding.UTF8.GetBytes(outbox.Payload));
         Assert.Equal(sale.GetProperty("id").GetInt64(), integrationEvent.SaleId);
         Assert.Equal(total, integrationEvent.TotalAmount);
+
+        var eventBody = System.Text.Encoding.UTF8.GetBytes(outbox.Payload);
+        var processor = scope.ServiceProvider.GetRequiredService<SaleFinalizedProcessor>();
+        Assert.Equal(
+            SaleFinalizedProcessingOutcome.SkippedNoDestination,
+            await processor.ProcessAsync(operationId, eventBody, default));
+        Assert.Equal(
+            SaleFinalizedProcessingOutcome.Duplicate,
+            await processor.ProcessAsync(operationId, eventBody, default));
+        Assert.Equal(1, await dbContext.InboxMessages.CountAsync(item => item.MessageId == operationId));
+        Assert.Equal(1, await dbContext.SaleReceiptDeliveries.CountAsync(item => item.MessageId == operationId));
+
+        var conflictingEvent = integrationEvent with { TotalAmount = integrationEvent.TotalAmount + 0.01m };
+        var conflictingBody = System.Text.Json.JsonSerializer.SerializeToUtf8Bytes(
+            conflictingEvent,
+            new JsonSerializerOptions(JsonSerializerDefaults.Web));
+        await Assert.ThrowsAsync<MessageIdentityCollisionException>(() =>
+            processor.ProcessAsync(operationId, conflictingBody, default));
+        Assert.Equal(1, await dbContext.SaleReceiptDeliveries.CountAsync(item => item.MessageId == operationId));
     }
 
     [Fact]

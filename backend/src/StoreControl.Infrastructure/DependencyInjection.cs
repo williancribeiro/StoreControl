@@ -92,6 +92,7 @@ public static class DependencyInjection
         services.AddSingleton<RabbitMqConnection>();
         services.AddSingleton<RabbitMqPublisher>();
         services.AddScoped<OutboxStore>();
+        services.AddScoped<SaleFinalizedProcessor>();
 
         services.AddScoped<IDatabaseSmokeCheck, SqlServerDatabaseSmokeCheck>();
         services.AddScoped<IDatabaseSeeder, DatabaseSeeder>();
@@ -125,6 +126,12 @@ public static class DependencyInjection
     public static IServiceCollection AddOutboxPublisher(this IServiceCollection services)
     {
         services.AddHostedService<OutboxDispatcher>();
+        return services;
+    }
+
+    public static IServiceCollection AddSaleFinalizedConsumer(this IServiceCollection services)
+    {
+        services.AddHostedService<SaleFinalizedConsumer>();
         return services;
     }
 }

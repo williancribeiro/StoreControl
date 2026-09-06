@@ -10,12 +10,15 @@ internal sealed class OutboxStore(StoreControlDbContext dbContext)
         TimeSpan leaseDuration,
         CancellationToken cancellationToken)
     {
-        var lockId = Guid.NewGuid();
-        var now = DateTime.UtcNow;
-        var lockedUntil = now.Add(leaseDuration);
+        var strategy = dbContext.Database.CreateExecutionStrategy();
+        return await strategy.ExecuteAsync(async () =>
+        {
+            var lockId = Guid.NewGuid();
+            var now = DateTime.UtcNow;
+            var lockedUntil = now.Add(leaseDuration);
 
-        await using var transaction = await dbContext.Database.BeginTransactionAsync(cancellationToken);
-        await dbContext.Database.ExecuteSqlInterpolatedAsync($$"""
+            await using var transaction = await dbContext.Database.BeginTransactionAsync(cancellationToken);
+            await dbContext.Database.ExecuteSqlInterpolatedAsync($$"""
             ;WITH candidates AS
             (
                 SELECT TOP ({batchSize}) *
@@ -31,14 +34,15 @@ internal sealed class OutboxStore(StoreControlDbContext dbContext)
                 [PublishAttempts] = [PublishAttempts] + 1;
             """, cancellationToken);
 
-        var messages = await dbContext.OutboxMessages
-            .AsNoTracking()
-            .Where(message => message.LockId == lockId)
-            .OrderBy(message => message.CreatedAtUtc)
-            .ThenBy(message => message.Id)
-            .ToListAsync(cancellationToken);
-        await transaction.CommitAsync(cancellationToken);
-        return messages;
+            var messages = await dbContext.OutboxMessages
+                .AsNoTracking()
+                .Where(message => message.LockId == lockId)
+                .OrderBy(message => message.CreatedAtUtc)
+                .ThenBy(message => message.Id)
+                .ToListAsync(cancellationToken);
+            await transaction.CommitAsync(cancellationToken);
+            return (IReadOnlyList<OutboxMessage>)messages;
+        });
     }
 
     public Task MarkPublishedAsync(OutboxMessage message, CancellationToken cancellationToken) =>
